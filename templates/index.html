@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LigueFit Index - League Adaptability Predictor</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <style>
+        .hero-section {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 4rem 0;
+        }
+        .card-custom {
+            border: none;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease;
+        }
+        .card-custom:hover {
+            transform: translateY(-5px);
+        }
+        .prediction-card {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+        }
+        .success-indicator {
+            font-size: 3rem;
+            font-weight: bold;
+        }
+        .risk-low { color: #28a745; }
+        .risk-medium { color: #ffc107; }
+        .risk-high { color: #dc3545; }
+        .feature-bar {
+            height: 20px;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            margin: 5px 0;
+            border-radius: 10px;
+        }
+        .spinner-border-sm {
+            display: none;
+        }
+        .loading .spinner-border-sm {
+            display: inline-block;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="#">
+                <i class="fas fa-chart-line me-2"></i>LigueFit Index
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="#predictor">Predictor</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#about">About</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero-section">
+        <div class="container text-center">
+            <h1 class="display-4 mb-4">
+                <i class="fas fa-futbol me-3"></i>LigueFit Index
+            </h1>
+            <p class="lead mb-4">
+                Predict player success across different football leagues using advanced machine learning
+            </p>
+            <p class="fs-5">
+                Analyze transfer probability based on player performance, league characteristics, and historical data
+            </p>
+        </div>
+    </section>
+
+    <!-- Main Content -->
+    <div class="container my-5">
+        <div class="row">
+            <!-- Input Form -->
+            <div class="col-lg-6">
+                <div class="card card-custom">
+                    <div class="card-header bg-primary text-white">
+                        <h4 class="mb-0">
+                            <i class="fas fa-user-edit me-2"></i>Player Information
+                        </h4>
+                    </div>
+                    <div class="card-body">
+                        <form id="predictionForm">
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="playerName" class="form-label">Player Name</label>
+                                    <input type="text" class="form-control" id="playerName" 
+                                           placeholder="e.g., Hugo Ekitike" required>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="age" class="form-label">Age</label>
+                                    <input type="number" class="form-control" id="age" 
+                                           min="16" max="40" value="25" required>
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="fromLeague" class="form-label">Current League</label>
+                                    <select class="form-select" id="fromLeague" required>
+                                        <option value="">Select League</option>
+                                        <option value="Premier League">Premier League</option>
+                                        <option value="La Liga">La Liga</option>
+                                        <option value="Serie A">Serie A</option>
+                                        <option value="Bundesliga">Bundesliga</option>
+                                        <option value="Ligue 1" selected>Ligue 1</option>
+                                        <option value="Eredivisie">Eredivisie</option>
+                                        <option value="Primeira Liga">Primeira Liga</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="toLeague" class="form-label">Target League</label>
+                                    <select class="form-select" id="toLeague" required>
+                                        <option value="">Select League</option>
+                                        <option value="Premier League" selected>Premier League</option>
+                                        <option value="La Liga">La Liga</option>
+                                        <option value="Serie A">Serie A</option>
+                                        <option value="Bundesliga">Bundesliga</option>
+                                        <option value="Ligue 1">Ligue 1</option>
+                                        <option value="Eredivisie">Eredivisie</option>
+                                        <option value="Primeira Liga">Primeira Liga</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="position" class="form-label">Position</label>
+                                <select class="form-select" id="position" required>
+                                    <option value="">Select Position</option>
+                                    <option value="Goalkeeper">Goalkeeper</option>
+                                    <option value="Centre-Back">Centre-Back</option>
+                                    <option value="Full-Back">Full-Back</option>
+                                    <option value="Defensive Midfield">Defensive Midfield</option>
+                                    <option value="Central Midfield">Central Midfield</option>
+                                    <option value="Attacking Midfield">Attacking Midfield</option>
+                                    <option value="Winger">Winger</option>
+                                    <option value="Forward" selected>Forward</option>
+                                </select>
+                            </div>
+
+                            <h6 class="text-muted mb-3">Performance Statistics (Current Season)</h6>
+                            
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="minutes" class="form-label">Minutes Played</label>
+                                    <input type="number" class="form-control" id="minutes" 
+                                           min="0" value="1500" required>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="goals" class="form-label">Goals</label>
+                                    <input type="number" class="form-control" id="goals" 
+                                           min="0" value="8" required>
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="assists" class="form-label">Assists</label>
+                                    <input type="number" class="form-control" id="assists" 
+                                           min="0" value="3" required>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="xg" class="form-label">Expected Goals (xG)</label>
+                                    <input type="number" class="form-control" id="xg" 
+                                           min="0" step="0.1" value="7.5" required>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="xa" class="form-label">Expected Assists (xA)</label>
+                                <input type="number" class="form-control" id="xa" 
+                                       min="0" step="0.1" value="2.8" required>
+                            </div>
+
+                            <button type="submit" class="btn btn-primary btn-lg w-100">
+                                <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                                <i class="fas fa-magic me-2"></i>Predict Adaptability
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Results -->
+            <div class="col-lg-6">
+                <div id="resultsContainer" style="display: none;">
+                    <div class="card card-custom prediction-card mb-4">
+                        <div class="card-body text-center">
+                            <h4 class="card-title mb-3">
+                                <i class="fas fa-target me-2"></i>Adaptability Score
+                            </h4>
+                            <div class="success-indicator" id="adaptabilityScore">--</div>
+                            <p class="mb-2" id="riskLevel">--</p>
+                            <p class="mb-0" id="leagueTransition">--</p>
+                        </div>
+                    </div>
+
+                    <div class="card card-custom">
+                        <div class="card-header">
+                            <h5 class="mb-0">
+                                <i class="fas fa-chart-bar me-2"></i>Key Factors
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div id="featureImportance">
+                                <!-- Feature importance will be populated here -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card card-custom mt-4">
+                        <div class="card-header">
+                            <h5 class="mb-0">
+                                <i class="fas fa-lightbulb me-2"></i>Recommendation
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <p id="recommendation" class="mb-0">--</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Examples -->
+                <div id="examplesContainer">
+                    <div class="card card-custom">
+                        <div class="card-header">
+                            <h5 class="mb-0">
+                                <i class="fas fa-star me-2"></i>Quick Examples
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <p class="text-muted mb-3">Try these example players:</p>
+                            
+                            <button class="btn btn-outline-primary btn-sm me-2 mb-2" 
+                                    onclick="loadExample('ekitike')">
+                                Hugo Ekitike (L1 → PL)
+                            </button>
+                            
+                            <button class="btn btn-outline-success btn-sm me-2 mb-2" 
+                                    onclick="loadExample('joao_pedro')">
+                                João Pedro (Serie A → PL)
+                            </button>
+                            
+                            <button class="btn btn-outline-info btn-sm me-2 mb-2" 
+                                    onclick="loadExample('szoboszlai')">
+                                Szoboszlai (Bundesliga → PL)
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- About Section -->
+    <section id="about" class="bg-light py-5">
+        <div class="container">
+            <div class="row">
+                <div class="col-lg-8 mx-auto text-center">
+                    <h2 class="mb-4">About LigueFit Index</h2>
+                    <p class="lead mb-4">
+                        LigueFit Index uses machine learning to predict how well a football player will adapt 
+                        to a new league based on their performance history and league characteristics.
+                    </p>
+                    
+                    <div class="row mt-5">
+                        <div class="col-md-4 mb-4">
+                            <div class="card card-custom h-100">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-database fa-3x text-primary mb-3"></i>
+                                    <h5>Data-Driven</h5>
+                                    <p>Based on historical transfer data and player performance metrics</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-4 mb-4">
+                            <div class="card card-custom h-100">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-brain fa-3x text-success mb-3"></i>
+                                    <h5>AI-Powered</h5>
+                                    <p>Advanced machine learning algorithms analyze complex patterns</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-4 mb-4">
+                            <div class="card card-custom h-100">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-globe fa-3x text-info mb-3"></i>
+                                    <h5>Multi-League</h5>
+                                    <p>Covers major European leagues with unique characteristics</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="bg-dark text-white py-4">
+        <div class="container text-center">
+            <p class="mb-0">
+                &copy; 2024 LigueFit Index. Built with ❤️ for football analytics.
+            </p>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        // Example data
+        const examples = {
+            ekitike: {
+                playerName: 'Hugo Ekitike',
+                age: 21,
+                fromLeague: 'Ligue 1',
+                toLeague: 'Premier League',
+                position: 'Forward',
+                minutes: 1200,
+                goals: 8,
+                assists: 2,
+                xg: 7.5,
+                xa: 2.1
+            },
+            joao_pedro: {
+                playerName: 'João Pedro',
+                age: 22,
+                fromLeague: 'Serie A',
+                toLeague: 'Premier League',
+                position: 'Forward',
+                minutes: 2200,
+                goals: 11,
+                assists: 6,
+                xg: 9.8,
+                xa: 5.2
+            },
+            szoboszlai: {
+                playerName: 'Dominik Szoboszlai',
+                age: 22,
+                fromLeague: 'Bundesliga',
+                toLeague: 'Premier League',
+                position: 'Central Midfield',
+                minutes: 2400,
+                goals: 3,
+                assists: 4,
+                xg: 4.2,
+                xa: 6.5
+            }
+        };
+
+        // Load example data
+        function loadExample(exampleKey) {
+            const example = examples[exampleKey];
+            if (!example) return;
+
+            Object.keys(example).forEach(key => {
+                const element = document.getElementById(key);
+                if (element) {
+                    element.value = example[key];
+                }
+            });
+        }
+
+        // Form submission
+        document.getElementById('predictionForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const form = e.target;
+            const submitBtn = form.querySelector('button[type="submit"]');
+            
+            // Show loading state
+            form.classList.add('loading');
+            submitBtn.disabled = true;
+            
+            // Hide results and examples
+            document.getElementById('resultsContainer').style.display = 'none';
+            document.getElementById('examplesContainer').style.display = 'none';
+            
+            // Collect form data
+            const formData = new FormData(form);
+            const data = {};
+            
+            // Get all form values
+            data.player_name = document.getElementById('playerName').value;
+            data.age = document.getElementById('age').value;
+            data.from_league = document.getElementById('fromLeague').value;
+            data.to_league = document.getElementById('toLeague').value;
+            data.position = document.getElementById('position').value;
+            data.minutes = document.getElementById('minutes').value;
+            data.goals = document.getElementById('goals').value;
+            data.assists = document.getElementById('assists').value;
+            data.xg = document.getElementById('xg').value;
+            data.xa = document.getElementById('xa').value;
+            
+            try {
+                const response = await fetch('/predict', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    displayResults(result);
+                } else {
+                    alert('Error: ' + (result.error || 'Unknown error occurred'));
+                }
+                
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Network error. Please try again.');
+            } finally {
+                // Hide loading state
+                form.classList.remove('loading');
+                submitBtn.disabled = false;
+            }
+        });
+
+        function displayResults(result) {
+            // Show results container
+            document.getElementById('resultsContainer').style.display = 'block';
+            
+            // Update main score
+            document.getElementById('adaptabilityScore').textContent = result.adaptability_score + '%';
+            
+            // Update risk level with color
+            const riskElement = document.getElementById('riskLevel');
+            riskElement.textContent = result.risk_level;
+            riskElement.className = 'mb-2 ' + 
+                (result.risk_level === 'Low Risk' ? 'risk-low' : 
+                 result.risk_level === 'Medium Risk' ? 'risk-medium' : 'risk-high');
+            
+            // Update league transition
+            document.getElementById('leagueTransition').textContent = result.league_transition;
+            
+            // Update recommendation
+            document.getElementById('recommendation').textContent = result.recommendation;
+            
+            // Update feature importance
+            displayFeatureImportance(result.feature_importance);
+        }
+
+        function displayFeatureImportance(features) {
+            const container = document.getElementById('featureImportance');
+            container.innerHTML = '';
+            
+            if (!features || Object.keys(features).length === 0) {
+                container.innerHTML = '<p class="text-muted">No feature importance data available</p>';
+                return;
+            }
+            
+            const maxImportance = Math.max(...Object.values(features));
+            
+            Object.entries(features).slice(0, 5).forEach(([feature, importance]) => {
+                const percentage = (importance / maxImportance) * 100;
+                
+                const featureDiv = document.createElement('div');
+                featureDiv.className = 'mb-3';
+                featureDiv.innerHTML = `
+                    <div class="d-flex justify-content-between mb-1">
+                        <span class="text-muted small">${formatFeatureName(feature)}</span>
+                        <span class="text-muted small">${(importance * 100).toFixed(1)}%</span>
+                    </div>
+                    <div class="progress" style="height: 8px;">
+                        <div class="progress-bar" role="progressbar" 
+                             style="width: ${percentage}%; background: linear-gradient(90deg, #667eea, #764ba2);"></div>
+                    </div>
+                `;
+                container.appendChild(featureDiv);
+            });
+        }
+
+        function formatFeatureName(name) {
+            return name.replace(/_/g, ' ')
+                      .replace(/\b\w/g, l => l.toUpperCase())
+                      .replace('Per 90', '/90')
+                      .replace('Xg', 'xG')
+                      .replace('Xa', 'xA');
+        }
+    </script>
+</body>
+</html>
