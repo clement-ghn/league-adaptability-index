@@ -125,17 +125,17 @@ def predict():
         # Engineer features
         processed_features = feature_engineer.process_single_player(features)
         
-        # Make prediction
-        prediction_proba = model.predict_proba([processed_features])[0]
-        adaptability_score = prediction_proba[1] * 100  # Success probability as percentage
+        # Make prediction using our custom method
+        prediction, probability = model.predict_adaptability(processed_features)
+        adaptability_score = probability * 100  # Success probability as percentage
         
         # Get feature importance
         feature_importance = get_feature_importance(processed_features)
         
         result = {
             'player_name': data.get('player_name', 'Unknown Player'),
-            'adaptability_score': round(adaptability_score, 2),
-            'success_probability': round(prediction_proba[1], 3),
+            'adaptability_score': float(round(adaptability_score, 2)),
+            'success_probability': float(round(probability, 3)),
             'risk_level': get_risk_level(adaptability_score),
             'feature_importance': feature_importance,
             'league_transition': f"{features['from_league']} → {features['to_league']}",
@@ -157,8 +157,12 @@ def get_feature_importance(features):
         if hasattr(model, 'best_model') and hasattr(model.best_model, 'feature_importances_'):
             feature_names = feature_engineer.get_feature_names()
             importance_dict = dict(zip(feature_names, model.best_model.feature_importances_))
+            
+            # Convert numpy types to Python native types for JSON serialization
+            importance_dict = {k: float(v) for k, v in importance_dict.items()}
+            
         elif hasattr(model, 'feature_importance') and model.feature_importance:
-            importance_dict = model.feature_importance
+            importance_dict = {k: float(v) for k, v in model.feature_importance.items()}
         else:
             # Fallback: return some default important features
             return {

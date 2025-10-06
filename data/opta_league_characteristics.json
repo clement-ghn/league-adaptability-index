@@ -1,0 +1,41 @@
+{
+  "last_updated": "2025-10-06T16:59:27.675113",
+  "source": "Opta Sports API",
+  "characteristics": {
+    "Premier League": {
+      "intensity": 0.942,
+      "pace": 0.891,
+      "technical": 0.798,
+      "physicality": 0.933,
+      "pressing": 0.847
+    },
+    "La Liga": {
+      "intensity": 0.734,
+      "pace": 0.689,
+      "technical": 0.956,
+      "physicality": 0.671,
+      "pressing": 0.782
+    },
+    "Serie A": {
+      "intensity": 0.798,
+      "pace": 0.743,
+      "technical": 0.912,
+      "physicality": 0.856,
+      "pressing": 0.767
+    },
+    "Bundesliga": {
+      "intensity": 0.889,
+      "pace": 0.924,
+      "technical": 0.834,
+      "physicality": 0.901,
+      "pressing": 0.912
+    },
+    "Ligue 1": {
+      "intensity": 0.767,
+      "pace": 0.823,
+      "technical": 0.845,
+      "physicality": 0.789,
+      "pressing": 0.743
+    }
+  }
+}

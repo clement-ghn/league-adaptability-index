@@ -14,8 +14,11 @@ import xgboost as xgb
 import joblib
 import os
 from typing import Dict, Tuple, Any
+import matplotlib
+matplotlib.use('Agg')  # Use non-interactive backend
 import matplotlib.pyplot as plt
 import seaborn as sns
+plt.ioff()  # Turn off interactive mode
 
 
 class AdaptabilityModel:
@@ -136,12 +139,18 @@ class AdaptabilityModel:
         """Extract and store feature importance from the best model"""
         if hasattr(self.best_model, 'feature_importances_'):
             importance_scores = self.best_model.feature_importances_
+            print(f"🔍 Feature importances extracted: min={importance_scores.min():.6f}, max={importance_scores.max():.6f}")
         elif hasattr(self.best_model, 'coef_'):
             # For logistic regression, use absolute coefficients
             importance_scores = np.abs(self.best_model.coef_[0])
+            print(f"🔍 Coefficients extracted: min={importance_scores.min():.6f}, max={importance_scores.max():.6f}")
         else:
             print("Cannot extract feature importance for this model type")
+            self.feature_importance = {}
             return
+        
+        # Convert to Python float for JSON serialization
+        importance_scores = [float(score) for score in importance_scores]
         
         # Create feature importance dictionary
         self.feature_importance = dict(zip(feature_names, importance_scores))
@@ -160,23 +169,41 @@ class AdaptabilityModel:
         # Get top N features
         top_features = dict(list(self.feature_importance.items())[:top_n])
         
-        plt.figure(figsize=(10, 8))
+        # Use non-interactive backend
+        import matplotlib
+        matplotlib.use('Agg')
+        
+        plt.figure(figsize=(12, 8))
         features = list(top_features.keys())
         importances = list(top_features.values())
         
-        plt.barh(range(len(features)), importances)
+        plt.barh(range(len(features)), importances, color='skyblue')
         plt.yticks(range(len(features)), features)
-        plt.xlabel('Importance')
+        plt.xlabel('Importance Score')
         plt.title(f'Top {top_n} Feature Importances - {self.best_model_name}')
         plt.gca().invert_yaxis()
+        
+        # Add value labels on bars
+        for i, v in enumerate(importances):
+            plt.text(v + 0.001, i, f'{v:.3f}', va='center', fontsize=9)
         
         plt.tight_layout()
         
         if save_path:
             plt.savefig(save_path, dpi=300, bbox_inches='tight')
-            print(f"Feature importance plot saved to {save_path}")
+            print(f"✅ Feature importance plot saved to {save_path}")
+        else:
+            plt.savefig('static/feature_importance.png', dpi=300, bbox_inches='tight')
+            print(f"✅ Feature importance plot saved to static/feature_importance.png")
         
-        plt.show()
+        plt.close()  # Close the figure to free memory
+        
+        # Print top features as text
+        print(f"\n🏆 Top {top_n} Most Important Features:")
+        print("=" * 50)
+        for i, (feature, importance) in enumerate(top_features.items(), 1):
+            print(f"{i:2d}. {feature:25s} : {importance:.4f}")
+        print("=" * 50)
     
     def plot_model_comparison(self, save_path: str = None):
         """Plot comparison of different models"""
@@ -184,19 +211,24 @@ class AdaptabilityModel:
             print("No metrics available for comparison")
             return
         
+        # Use non-interactive backend
+        import matplotlib
+        matplotlib.use('Agg')
+        
         metrics_df = pd.DataFrame(self.metrics).T
         
         fig, axes = plt.subplots(2, 2, figsize=(15, 10))
         axes = axes.ravel()
         
         metrics_to_plot = ['accuracy', 'precision', 'recall', 'f1_score']
+        colors = ['lightblue', 'lightgreen', 'lightcoral', 'gold']
         
         for i, metric in enumerate(metrics_to_plot):
             ax = axes[i]
             values = metrics_df[metric].values
             models = metrics_df.index.values
             
-            bars = ax.bar(models, values)
+            bars = ax.bar(models, values, color=colors[i % len(colors)])
             ax.set_title(f'{metric.title().replace("_", " ")}')
             ax.set_ylabel('Score')
             ax.set_ylim(0, 1)
@@ -205,7 +237,7 @@ class AdaptabilityModel:
             for bar, value in zip(bars, values):
                 height = bar.get_height()
                 ax.text(bar.get_x() + bar.get_width()/2., height + 0.01,
-                       f'{value:.3f}', ha='center', va='bottom')
+                       f'{value:.3f}', ha='center', va='bottom', fontsize=9)
             
             # Rotate x-axis labels
             ax.tick_params(axis='x', rotation=45)
@@ -214,9 +246,20 @@ class AdaptabilityModel:
         
         if save_path:
             plt.savefig(save_path, dpi=300, bbox_inches='tight')
-            print(f"Model comparison plot saved to {save_path}")
+            print(f"✅ Model comparison plot saved to {save_path}")
+        else:
+            plt.savefig('static/model_comparison.png', dpi=300, bbox_inches='tight')
+            print(f"✅ Model comparison plot saved to static/model_comparison.png")
         
-        plt.show()
+        plt.close()  # Close the figure to free memory
+        
+        # Print comparison as text
+        print(f"\n📊 Model Comparison Results:")
+        print("=" * 60)
+        for model_name, metrics in self.metrics.items():
+            print(f"{model_name:20s} | F1: {metrics['f1_score']:.3f} | "
+                  f"Acc: {metrics['accuracy']:.3f} | AUC: {metrics['roc_auc']:.3f}")
+        print("=" * 60)
     
     def hyperparameter_tuning(self, X: pd.DataFrame, y: pd.Series, model_name: str = 'xgboost'):
         """

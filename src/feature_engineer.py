@@ -9,6 +9,8 @@ from typing import Dict, List, Tuple
 from sklearn.preprocessing import StandardScaler, LabelEncoder
 import joblib
 import os
+import json
+from datetime import datetime
 
 
 class FeatureEngineer:
@@ -87,29 +89,25 @@ class FeatureEngineer:
         """Create features specific to league transitions"""
         df = df.copy()
         
-        # Get league characteristics
-        league_chars = {
-            'Premier League': {
-                'intensity': 0.95, 'pace': 0.90, 'technical': 0.80, 
-                'physicality': 0.95, 'pressing': 0.85
+        # Get league characteristics from Opta data or fallback to estimates
+        league_chars = self._get_league_characteristics()
+        
+        # Add support for more leagues with estimates if not in Opta data
+        fallback_chars = {
+            'Eredivisie': {
+                'intensity': 0.72, 'pace': 0.78, 'technical': 0.88, 
+                'physicality': 0.65, 'pressing': 0.70
             },
-            'La Liga': {
-                'intensity': 0.75, 'pace': 0.70, 'technical': 0.95, 
-                'physicality': 0.70, 'pressing': 0.80
-            },
-            'Serie A': {
-                'intensity': 0.80, 'pace': 0.75, 'technical': 0.90, 
-                'physicality': 0.85, 'pressing': 0.78
-            },
-            'Bundesliga': {
-                'intensity': 0.88, 'pace': 0.92, 'technical': 0.85, 
-                'physicality': 0.90, 'pressing': 0.90
-            },
-            'Ligue 1': {
-                'intensity': 0.78, 'pace': 0.82, 'technical': 0.85, 
-                'physicality': 0.80, 'pressing': 0.75
+            'Primeira Liga': {
+                'intensity': 0.70, 'pace': 0.73, 'technical': 0.82, 
+                'physicality': 0.75, 'pressing': 0.68
             }
         }
+        
+        # Merge Opta data with fallback estimates
+        for league, chars in fallback_chars.items():
+            if league not in league_chars:
+                league_chars[league] = chars
         
         # Common transition types
         transition_types = {
@@ -189,6 +187,60 @@ class FeatureEngineer:
         )
         
         return df
+    
+    def _get_league_characteristics(self) -> Dict:
+        """
+        Get league characteristics from Opta data file or use defaults
+        
+        Returns:
+            Dictionary with league characteristics
+        """
+        opta_file = "data/opta_league_characteristics.json"
+        
+        # Try to load Opta data first
+        if os.path.exists(opta_file):
+            try:
+                with open(opta_file, 'r') as f:
+                    opta_data = json.load(f)
+                
+                # Check if data is recent (less than 30 days old)
+                if 'last_updated' in opta_data:
+                    last_update = datetime.fromisoformat(opta_data['last_updated'])
+                    days_old = (datetime.now() - last_update).days
+                    
+                    if days_old < 30:
+                        print(f"📊 Using Opta data (updated {days_old} days ago)")
+                        return opta_data['characteristics']
+                    else:
+                        print(f"⚠️ Opta data is {days_old} days old, using fallback estimates")
+                
+            except (json.JSONDecodeError, KeyError) as e:
+                print(f"⚠️ Error reading Opta data: {e}, using fallback estimates")
+        
+        # Fallback to estimated characteristics
+        print("📊 Using estimated league characteristics (consider updating with Opta data)")
+        return {
+            'Premier League': {
+                'intensity': 0.95, 'pace': 0.90, 'technical': 0.80, 
+                'physicality': 0.95, 'pressing': 0.85
+            },
+            'La Liga': {
+                'intensity': 0.75, 'pace': 0.70, 'technical': 0.95, 
+                'physicality': 0.70, 'pressing': 0.80
+            },
+            'Serie A': {
+                'intensity': 0.80, 'pace': 0.75, 'technical': 0.90, 
+                'physicality': 0.85, 'pressing': 0.78
+            },
+            'Bundesliga': {
+                'intensity': 0.88, 'pace': 0.92, 'technical': 0.85, 
+                'physicality': 0.90, 'pressing': 0.90
+            },
+            'Ligue 1': {
+                'intensity': 0.78, 'pace': 0.82, 'technical': 0.85, 
+                'physicality': 0.80, 'pressing': 0.75
+            }
+        }
     
     def encode_categorical_features(self, df: pd.DataFrame, fit: bool = True) -> pd.DataFrame:
         """Encode categorical features"""

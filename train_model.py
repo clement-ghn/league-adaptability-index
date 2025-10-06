@@ -60,11 +60,17 @@ def main():
     # Step 5: Generate visualizations
     print("\n📈 Step 5: Generating visualizations...")
     try:
+        import matplotlib
+        matplotlib.use('Agg')  # Use non-interactive backend
+        import matplotlib.pyplot as plt
+        plt.ioff()  # Turn off interactive mode
+        
         model.plot_model_comparison(save_path='static/model_comparison.png')
         model.plot_feature_importance(save_path='static/feature_importance.png')
         print("✅ Visualizations saved to static/ directory")
     except Exception as e:
         print(f"⚠️  Warning: Could not generate plots: {e}")
+        print(f"   This is normal on some systems. Graphs will be skipped.")
     
     # Step 6: Generate model report
     print("\n📋 Step 6: Generating model report...")
