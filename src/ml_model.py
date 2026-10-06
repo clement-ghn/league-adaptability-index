@@ -17,7 +17,6 @@ from typing import Dict, Tuple, Any
 import matplotlib
 matplotlib.use('Agg')  # Use non-interactive backend
 import matplotlib.pyplot as plt
-import seaborn as sns
 plt.ioff()  # Turn off interactive mode
 
 
@@ -32,7 +31,9 @@ class AdaptabilityModel:
         self.best_model_name = None
         self.feature_importance = None
         self.metrics = {}
-        
+        self.X_test = None
+        self.y_test = None
+
     def initialize_models(self) -> Dict[str, Any]:
         """Initialize different ML models to compare"""
         models = {
@@ -81,7 +82,10 @@ class AdaptabilityModel:
         X_train, X_test, y_train, y_test = train_test_split(
             X, y, test_size=test_size, random_state=42, stratify=y
         )
-        
+        # Keep the held-out split so the report uses the same data as the metrics
+        self.X_test = X_test
+        self.y_test = y_test
+
         print(f"Training set size: {len(X_train)}")
         print(f"Test set size: {len(X_test)}")
         print(f"Class distribution - Success: {y_train.sum()}, Failure: {len(y_train) - y_train.sum()}")

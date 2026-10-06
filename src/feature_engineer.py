@@ -33,15 +33,6 @@ class FeatureEngineer:
                                    bins=[15, 21, 25, 28, 35, 45], 
                                    labels=['Young', 'Emerging', 'Prime', 'Experienced', 'Veteran'])
         
-        # Performance consistency (xG vs actual goals)
-        df['pre_finishing_ability'] = df['pre_xg_overperformance'] / (df['pre_xg'] + 0.1)
-        
-        # For prediction mode, we don't have post-transfer data
-        if 'post_xg_overperformance' in df.columns:
-            df['post_finishing_ability'] = df['post_xg_overperformance'] / (df['post_xg'] + 0.1)
-        else:
-            df['post_finishing_ability'] = 0  # Default for prediction
-        
         # Playing time adaptation
         if 'post_minutes' in df.columns:
             df['minutes_ratio'] = df['post_minutes'] / (df['pre_minutes'] + 1)
@@ -52,12 +43,10 @@ class FeatureEngineer:
         if 'post_goals_per_90' in df.columns:
             df['goals_adaptation'] = (df['post_goals_per_90'] + 0.01) / (df['pre_goals_per_90'] + 0.01)
             df['assists_adaptation'] = (df['post_assists_per_90'] + 0.01) / (df['pre_assists_per_90'] + 0.01)
-            df['xg_adaptation'] = (df['post_xg_per_90'] + 0.01) / (df['pre_xg_per_90'] + 0.01)
         else:
             # Default values for prediction mode
             df['goals_adaptation'] = 1.0
             df['assists_adaptation'] = 1.0
-            df['xg_adaptation'] = 1.0
         
         return df
     
@@ -65,15 +54,11 @@ class FeatureEngineer:
         """Create position-specific features"""
         df = df.copy()
         
-        # Position categories for easier encoding
+        # Position categories (the four positions the API distinguishes, see build_dataset.py)
         position_mapping = {
             'Goalkeeper': 'GK',
-            'Centre-Back': 'DEF',
-            'Full-Back': 'DEF',
-            'Defensive Midfield': 'MID',
-            'Central Midfield': 'MID',
-            'Attacking Midfield': 'MID',
-            'Winger': 'ATT',
+            'Defender': 'DEF',
+            'Midfielder': 'MID',
             'Forward': 'ATT'
         }
         
@@ -180,12 +165,7 @@ class FeatureEngineer:
         # League difficulty and player profile interactions
         df['transition_difficulty_age'] = df['transition_difficulty'] * df['age']
         df['intensity_jump_minutes'] = df['intensity_jump'] * df['pre_minutes'] / 1000  # Normalize
-        
-        # Performance consistency under pressure
-        df['performance_under_pressure'] = (
-            df['pre_finishing_ability'] * (1 - df['transition_difficulty'])
-        )
-        
+
         return df
     
     def _get_league_characteristics(self) -> Dict:
@@ -271,11 +251,10 @@ class FeatureEngineer:
         # Define feature columns for ML
         feature_columns = [
             # Basic info
-            'age', 'transfer_fee',
-            
+            'age',
+
             # Pre-transfer performance
-            'pre_goals_per_90', 'pre_assists_per_90', 'pre_xg_per_90', 'pre_xa_per_90',
-            'pre_finishing_ability', 'pre_minutes',
+            'pre_goals_per_90', 'pre_assists_per_90', 'pre_minutes',
             
             # League transition features
             'intensity_jump', 'pace_jump', 'physicality_jump', 'technical_jump', 'pressing_jump',
@@ -288,7 +267,6 @@ class FeatureEngineer:
             # Interaction features
             'age_goals_interaction', 'age_physicality_interaction',
             'transition_difficulty_age', 'intensity_jump_minutes',
-            'performance_under_pressure',
             
             # Encoded categorical features
             'position_category_encoded', 'transition_type_encoded'
@@ -366,36 +344,28 @@ class FeatureEngineer:
         # Map input column names to expected names
         column_mapping = {
             'minutes': 'pre_minutes',
-            'goals': 'pre_goals', 
-            'assists': 'pre_assists',
-            'xg': 'pre_xg',
-            'xa': 'pre_xa'
+            'goals': 'pre_goals',
+            'assists': 'pre_assists'
         }
-        
+
         # Rename columns if needed
         for old_name, new_name in column_mapping.items():
             if old_name in df.columns and new_name not in df.columns:
                 df[new_name] = df[old_name]
-        
+
         # Add missing columns with default values
-        required_columns = ['transfer_fee', 'pre_minutes', 'pre_goals', 'pre_assists', 
-                          'pre_xg', 'pre_xa']
-        
+        required_columns = ['pre_minutes', 'pre_goals', 'pre_assists']
+
         for col in required_columns:
             if col not in df.columns:
-                if col == 'transfer_fee':
-                    df[col] = 30  # Default transfer fee in millions
-                elif col == 'pre_minutes':
+                if col == 'pre_minutes':
                     df[col] = 2000  # Default minutes
                 else:
                     df[col] = 0  # Default for performance stats
-        
+
         # Calculate basic derived metrics
         df['pre_goals_per_90'] = (df['pre_goals'] / df['pre_minutes']) * 90
         df['pre_assists_per_90'] = (df['pre_assists'] / df['pre_minutes']) * 90
-        df['pre_xg_per_90'] = (df['pre_xg'] / df['pre_minutes']) * 90
-        df['pre_xa_per_90'] = (df['pre_xa'] / df['pre_minutes']) * 90
-        df['pre_xg_overperformance'] = df['pre_goals'] - df['pre_xg']
         
         # Transform using the fitted pipeline
         X_processed = self.transform(df)

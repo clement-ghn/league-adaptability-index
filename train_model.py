@@ -14,18 +14,41 @@ from data_processor import DataProcessor
 from feature_engineer import FeatureEngineer
 from ml_model import AdaptabilityModel
 
+# Paths in this script are relative to the project root, whatever the current directory
+os.chdir(os.path.dirname(os.path.abspath(__file__)))
+
+# Emoji output crashes on Windows consoles/pipes using cp1252
+if hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(encoding='utf-8')
+
+# Below this number of transfers the metrics are not meaningful (see the README)
+MIN_SAMPLES_FOR_EVALUATION = 100
+
 
 def main():
     """Main training pipeline"""
+    os.makedirs('static', exist_ok=True)
+    os.makedirs('models', exist_ok=True)
+
     print("🚀 Starting LigueFit Index Model Training")
     print("=" * 50)
-    
+
     # Step 1: Load and process data
     print("\n📊 Step 1: Loading and processing data...")
     processor = DataProcessor()
+    try:
+        raw = processor.load_transfer_dataset()
+    except (FileNotFoundError, pd.errors.EmptyDataError):
+        raw = pd.DataFrame()
+    if len(raw) == 0:
+        print("❌ No transfers in data/transfers_dataset.csv. Run 'python src/build_dataset.py' first.")
+        sys.exit(1)
+    if len(raw) < MIN_SAMPLES_FOR_EVALUATION:
+        print(f"⚠️  Only {len(raw)} transfers (fewer than {MIN_SAMPLES_FOR_EVALUATION}): the metrics are not meaningful yet.")
+
     df = processor.prepare_dataset()
     processor.save_data(df)
-    
+
     print(f"✅ Data loaded: {len(df)} samples with {len(df.columns)} features")
     print(f"📈 Success rate: {df['success'].mean():.1%}")
     
@@ -74,8 +97,8 @@ def main():
     
     # Step 6: Generate model report
     print("\n📋 Step 6: Generating model report...")
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
-    report = model.generate_report(X_test, y_test)
+    # Same held-out split as the metrics above
+    report = model.generate_report(model.X_test, model.y_test)
     
     # Save report
     with open('models/model_report.txt', 'w') as f:
@@ -95,18 +118,16 @@ def test_prediction(model, feature_engineer):
     print("\n🧪 Testing model with sample prediction...")
     
     try:
-        # Test with Hugo Ekitike example
+        # Example profile (not a real player): checks that the pipeline runs end to end
         test_player = {
-            'player_name': 'Hugo Ekitike',
-            'age': 21,
-            'from_league': 'Ligue 1',
+            'player_name': 'Example profile',
+            'age': 24,
+            'from_league': 'Bundesliga',
             'to_league': 'Premier League',
-            'position': 'Forward',
-            'minutes': 1200,
-            'goals': 8,
-            'assists': 2,
-            'xg': 7.5,
-            'xa': 2.1
+            'position': 'Midfielder',
+            'minutes': 2000,
+            'goals': 5,
+            'assists': 4
         }
         
         # Process features
@@ -144,8 +165,6 @@ def test_prediction(model, feature_engineer):
 
 
 if __name__ == "__main__":
-    from sklearn.model_selection import train_test_split
-    
     # Run training
     model, feature_engineer, df = main()
     

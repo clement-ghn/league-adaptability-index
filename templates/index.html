@@ -3,501 +3,854 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LigueFit Index - League Adaptability Predictor</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <title>LigueFit Index</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
-        .hero-section {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 4rem 0;
+        :root {
+            --bg: #f5f5f7;
+            --bg-glow-1: rgba(0, 113, 227, 0.14);
+            --bg-glow-2: rgba(175, 82, 222, 0.12);
+            --surface: rgba(255, 255, 255, 0.78);
+            --surface-solid: #ffffff;
+            --text: #1d1d1f;
+            --muted: #6e6e73;
+            --border: rgba(0, 0, 0, 0.08);
+            --field: #f2f2f5;
+            --accent: #0071e3;
+            --accent-2: #af52de;
+            --low: #248a3d;
+            --medium: #c97000;
+            --high: #d70015;
+            --track: #e5e5ea;
+            --shadow: 0 1px 2px rgba(0,0,0,0.04), 0 12px 40px rgba(0,0,0,0.06);
+            --radius: 20px;
+            --font: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
         }
-        .card-custom {
-            border: none;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            transition: transform 0.3s ease;
+
+        @media (prefers-color-scheme: dark) {
+            :root:not([data-theme="light"]) {
+                --bg: #000000;
+                --bg-glow-1: rgba(41, 151, 255, 0.18);
+                --bg-glow-2: rgba(191, 90, 242, 0.14);
+                --surface: rgba(28, 28, 30, 0.78);
+                --surface-solid: #1c1c1e;
+                --text: #f5f5f7;
+                --muted: #a1a1a6;
+                --border: rgba(255, 255, 255, 0.10);
+                --field: #2c2c2e;
+                --accent: #2997ff;
+                --accent-2: #bf5af2;
+                --low: #30d158;
+                --medium: #ff9f0a;
+                --high: #ff453a;
+                --track: #3a3a3c;
+                --shadow: 0 1px 2px rgba(0,0,0,0.4), 0 12px 40px rgba(0,0,0,0.35);
+            }
         }
-        .card-custom:hover {
-            transform: translateY(-5px);
+
+        :root[data-theme="dark"] {
+            --bg: #000000;
+            --bg-glow-1: rgba(41, 151, 255, 0.18);
+            --bg-glow-2: rgba(191, 90, 242, 0.14);
+            --surface: rgba(28, 28, 30, 0.78);
+            --surface-solid: #1c1c1e;
+            --text: #f5f5f7;
+            --muted: #a1a1a6;
+            --border: rgba(255, 255, 255, 0.10);
+            --field: #2c2c2e;
+            --accent: #2997ff;
+            --accent-2: #bf5af2;
+            --low: #30d158;
+            --medium: #ff9f0a;
+            --high: #ff453a;
+            --track: #3a3a3c;
+            --shadow: 0 1px 2px rgba(0,0,0,0.4), 0 12px 40px rgba(0,0,0,0.35);
         }
-        .prediction-card {
-            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-            color: white;
+
+        * { box-sizing: border-box; }
+        [hidden] { display: none !important; }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            font-family: var(--font);
+            font-size: 16px;
+            line-height: 1.5;
+            color: var(--text);
+            background:
+                radial-gradient(900px 500px at 10% -10%, var(--bg-glow-1), transparent 60%),
+                radial-gradient(800px 500px at 100% 0%, var(--bg-glow-2), transparent 60%),
+                var(--bg);
+            background-attachment: fixed;
+            -webkit-font-smoothing: antialiased;
         }
-        .success-indicator {
-            font-size: 3rem;
-            font-weight: bold;
+
+        .wrap {
+            max-width: 1080px;
+            margin: 0 auto;
+            padding: 0 16px;
         }
-        .risk-low { color: #28a745; }
-        .risk-medium { color: #ffc107; }
-        .risk-high { color: #dc3545; }
-        .feature-bar {
-            height: 20px;
-            background: linear-gradient(90deg, #667eea, #764ba2);
-            margin: 5px 0;
-            border-radius: 10px;
+
+        /* Hero */
+        .hero {
+            text-align: center;
+            padding: 72px 0 44px;
         }
-        .spinner-border-sm {
-            display: none;
-        }
-        .loading .spinner-border-sm {
+        .eyebrow {
             display: inline-block;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--accent);
+            background: color-mix(in srgb, var(--accent) 12%, transparent);
+            padding: 5px 12px;
+            border-radius: 999px;
+            margin-bottom: 20px;
         }
+        .hero h1 {
+            font-size: clamp(38px, 6.4vw, 64px);
+            font-weight: 800;
+            letter-spacing: -0.04em;
+            line-height: 1.04;
+            margin: 0 0 18px;
+        }
+        .hero h1 span {
+            background: linear-gradient(90deg, var(--accent), var(--accent-2));
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+        .hero p {
+            font-size: 19px;
+            color: var(--muted);
+            max-width: 580px;
+            margin: 0 auto;
+        }
+
+        /* Notice */
+        .notice {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            max-width: 680px;
+            margin: 32px auto 0;
+            padding: 12px 16px;
+            border-radius: 14px;
+            background: color-mix(in srgb, var(--medium) 10%, var(--surface-solid));
+            border: 1px solid color-mix(in srgb, var(--medium) 30%, transparent);
+            font-size: 14px;
+            color: var(--text);
+        }
+        .notice svg { flex: none; width: 18px; height: 18px; color: var(--medium); }
+
+        /* Layout */
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 24px;
+            margin-top: 40px;
+            align-items: start;
+        }
+        @media (min-width: 900px) {
+            .grid { grid-template-columns: 1.05fr 1fr; }
+        }
+        .stack { display: flex; flex-direction: column; gap: 24px; }
+
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 28px;
+            box-shadow: var(--shadow);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+        }
+        .card h2 {
+            font-size: 17px;
+            font-weight: 700;
+            letter-spacing: -0.01em;
+            margin: 0 0 20px;
+        }
+        .card-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+        .card-head h2 { margin: 0; }
+        .step {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+
+        /* Form fields */
+        .fields {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 16px;
+        }
+        @media (min-width: 560px) {
+            .fields.two { grid-template-columns: 1fr 1fr; }
+        }
+        .group-label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--muted);
+            margin: 24px 0 8px;
+        }
+        label.field-label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--muted);
+            margin-bottom: 8px;
+        }
+        input, select {
+            width: 100%;
+            font: inherit;
+            font-size: 16px;
+            color: var(--text);
+            background: var(--field);
+            border: 1px solid transparent;
+            border-radius: 12px;
+            padding: 12px 14px;
+            appearance: none;
+            -webkit-appearance: none;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+        }
+        select {
+            background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%),
+                              linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+            background-position: calc(100% - 20px) 52%, calc(100% - 15px) 52%;
+            background-size: 5px 5px, 5px 5px;
+            background-repeat: no-repeat;
+            padding-right: 36px;
+        }
+        input:focus, select:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 22%, transparent);
+        }
+
+        /* Segmented control (position) */
+        .segments {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 4px;
+            padding: 4px;
+            background: var(--field);
+            border-radius: 12px;
+        }
+        .segment {
+            font: inherit;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--muted);
+            background: transparent;
+            border: 0;
+            border-radius: 9px;
+            padding: 9px 4px;
+            cursor: pointer;
+            transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+        }
+        .segment:hover { color: var(--text); }
+        .segment[aria-pressed="true"] {
+            background: var(--surface-solid);
+            color: var(--text);
+            font-weight: 600;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+        }
+
+        /* League flow */
+        .flow {
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            align-items: end;
+            gap: 12px;
+        }
+        .flow-arrow {
+            color: var(--muted);
+            padding-bottom: 12px;
+        }
+        .flow-arrow svg { width: 22px; height: 22px; }
+
+        /* Stats */
+        .stat-input { position: relative; }
+        .stat-input input { padding-right: 56px; }
+        .stat-input .unit {
+            position: absolute;
+            right: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 13px;
+            color: var(--muted);
+            pointer-events: none;
+        }
+
+        /* Submit */
+        .submit {
+            margin-top: 28px;
+            width: 100%;
+            font: inherit;
+            font-size: 16px;
+            font-weight: 600;
+            color: #fff;
+            background: linear-gradient(135deg, var(--accent), var(--accent-2));
+            border: 0;
+            border-radius: 14px;
+            padding: 15px;
+            cursor: pointer;
+            box-shadow: 0 8px 24px color-mix(in srgb, var(--accent) 35%, transparent);
+            transition: transform 0.15s ease, opacity 0.2s ease;
+        }
+        .submit:hover { transform: translateY(-1px); }
+        .submit:active { transform: translateY(0); }
+        .submit:disabled { opacity: 0.6; cursor: progress; transform: none; }
+
+        .error {
+            margin: 14px 0 0;
+            font-size: 14px;
+            color: var(--high);
+        }
+        .error[hidden] { display: none; }
+
+        /* Empty state */
+        .empty {
+            text-align: center;
+            padding: 36px 12px;
+        }
+        .empty-icon {
+            width: 64px;
+            height: 64px;
+            margin: 0 auto 16px;
+            border-radius: 20px;
+            background: var(--field);
+            display: grid;
+            place-items: center;
+            color: var(--muted);
+        }
+        .empty-icon svg { width: 30px; height: 30px; }
+        .empty h3 {
+            font-size: 17px;
+            font-weight: 600;
+            margin: 0 0 6px;
+        }
+        .empty p {
+            margin: 0;
+            color: var(--muted);
+            font-size: 15px;
+        }
+
+        /* Score gauge */
+        .gauge {
+            position: relative;
+            width: 200px;
+            height: 200px;
+            margin: 4px auto 0;
+        }
+        .gauge svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+        .gauge-track { stroke: var(--track); }
+        .gauge-fill {
+            stroke: var(--accent);
+            transition: stroke-dashoffset 1s cubic-bezier(0.22, 1, 0.36, 1), stroke 0.4s ease;
+        }
+        .gauge-value {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        .gauge-number {
+            font-size: 52px;
+            font-weight: 800;
+            letter-spacing: -0.04em;
+            line-height: 1;
+            font-variant-numeric: tabular-nums;
+        }
+        .gauge-number small {
+            font-size: 22px;
+            font-weight: 600;
+            color: var(--muted);
+            margin-left: 2px;
+        }
+        .gauge-caption {
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--muted);
+            margin-top: 6px;
+        }
+
+        .risk {
+            display: flex;
+            justify-content: center;
+            margin-top: 16px;
+        }
+        .risk span {
+            font-size: 14px;
+            font-weight: 600;
+            padding: 6px 14px;
+            border-radius: 999px;
+            background: var(--track);
+        }
+        .risk .low { color: var(--low); }
+        .risk .medium { color: var(--medium); }
+        .risk .high { color: var(--high); }
+        .risk span[data-level="low"] { background: color-mix(in srgb, var(--low) 14%, transparent); }
+        .risk span[data-level="medium"] { background: color-mix(in srgb, var(--medium) 14%, transparent); }
+        .risk span[data-level="high"] { background: color-mix(in srgb, var(--high) 14%, transparent); }
+
+        .transition-chip {
+            display: inline-block;
+            margin: 14px auto 0;
+            font-size: 14px;
+            color: var(--muted);
+            text-align: center;
+            width: 100%;
+        }
+        .recommendation {
+            margin: 18px 0 0;
+            padding: 14px 16px;
+            border-radius: 14px;
+            background: var(--field);
+            font-size: 15px;
+        }
+
+        /* Factors */
+        .factor { margin-bottom: 18px; }
+        .factor:last-child { margin-bottom: 0; }
+        .factor-head {
+            display: flex;
+            justify-content: space-between;
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 8px;
+        }
+        .factor-head span:last-child {
+            color: var(--muted);
+            font-variant-numeric: tabular-nums;
+        }
+        .bar {
+            height: 8px;
+            background: var(--track);
+            border-radius: 999px;
+            overflow: hidden;
+        }
+        .bar > div {
+            height: 100%;
+            border-radius: 999px;
+            background: linear-gradient(90deg, var(--accent), var(--accent-2));
+            transition: width 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+        .muted { color: var(--muted); font-size: 13px; margin: 18px 0 0; }
+
+        /* Examples */
+        .examples {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 10px;
+        }
+        @media (min-width: 560px) {
+            .examples { grid-template-columns: repeat(3, 1fr); }
+        }
+        .example {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            text-align: left;
+            font: inherit;
+            color: var(--text);
+            background: var(--field);
+            border: 1px solid transparent;
+            border-radius: 14px;
+            padding: 12px;
+            cursor: pointer;
+            transition: border-color 0.2s ease, transform 0.15s ease;
+        }
+        .example:hover { border-color: var(--accent); transform: translateY(-1px); }
+        .avatar {
+            flex: none;
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            display: grid;
+            place-items: center;
+            font-size: 13px;
+            font-weight: 700;
+            color: #fff;
+            background: linear-gradient(135deg, var(--accent), var(--accent-2));
+        }
+        .example-name { font-size: 14px; font-weight: 600; display: block; }
+        .example-meta { font-size: 12px; color: var(--muted); display: block; }
+
+        /* About */
+        .about {
+            margin: 96px 0 56px;
+            text-align: center;
+        }
+        .about h2 {
+            font-size: 30px;
+            font-weight: 800;
+            letter-spacing: -0.03em;
+            margin: 0 0 14px;
+        }
+        .about > p {
+            color: var(--muted);
+            max-width: 640px;
+            margin: 0 auto;
+            font-size: 17px;
+        }
+
+        footer {
+            border-top: 1px solid var(--border);
+            padding: 24px 0;
+            font-size: 13px;
+            color: var(--muted);
+        }
+        footer .wrap { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
     </style>
 </head>
 <body>
-    <!-- Navigation -->
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-        <div class="container">
-            <a class="navbar-brand" href="#">
-                <i class="fas fa-chart-line me-2"></i>LigueFit Index
-            </a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav ms-auto">
-                    <li class="nav-item">
-                        <a class="nav-link" href="#predictor">Predictor</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="#about">About</a>
-                    </li>
-                </ul>
-            </div>
+    <main class="wrap">
+        <section class="hero">
+            <span class="eyebrow">Prototype</span>
+            <h1>How well will a player <span>adapt?</span></h1>
+            <p>An estimate of a player's chances of adapting to a new league, from his recent statistics and the leagues involved.</p>
+        </section>
+
+        <div class="notice" role="note">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/></svg>
+            <span>The model is still trained on a small sample of transfers. Scores are indicative only and not validated.</span>
         </div>
-    </nav>
 
-    <!-- Hero Section -->
-    <section class="hero-section">
-        <div class="container text-center">
-            <h1 class="display-4 mb-4">
-                <i class="fas fa-futbol me-3"></i>LigueFit Index
-            </h1>
-            <p class="lead mb-4">
-                Predict player success across different football leagues using advanced machine learning
-            </p>
-            <p class="fs-5">
-                Analyze transfer probability based on player performance, league characteristics, and historical data
-            </p>
-        </div>
-    </section>
-
-    <!-- Main Content -->
-    <div class="container my-5">
-        <div class="row">
-            <!-- Input Form -->
-            <div class="col-lg-6">
-                <div class="card card-custom">
-                    <div class="card-header bg-primary text-white">
-                        <h4 class="mb-0">
-                            <i class="fas fa-user-edit me-2"></i>Player Information
-                        </h4>
-                    </div>
-                    <div class="card-body">
-                        <form id="predictionForm">
-                            <div class="row">
-                                <div class="col-md-6 mb-3">
-                                    <label for="playerName" class="form-label">Player Name</label>
-                                    <input type="text" class="form-control" id="playerName" 
-                                           placeholder="e.g., Hugo Ekitike" required>
-                                </div>
-                                <div class="col-md-6 mb-3">
-                                    <label for="age" class="form-label">Age</label>
-                                    <input type="number" class="form-control" id="age" 
-                                           min="16" max="40" value="25" required>
-                                </div>
-                            </div>
-
-                            <div class="row">
-                                <div class="col-md-6 mb-3">
-                                    <label for="fromLeague" class="form-label">Current League</label>
-                                    <select class="form-select" id="fromLeague" required>
-                                        <option value="">Select League</option>
-                                        <option value="Premier League">Premier League</option>
-                                        <option value="La Liga">La Liga</option>
-                                        <option value="Serie A">Serie A</option>
-                                        <option value="Bundesliga">Bundesliga</option>
-                                        <option value="Ligue 1" selected>Ligue 1</option>
-                                        <option value="Eredivisie">Eredivisie</option>
-                                        <option value="Primeira Liga">Primeira Liga</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-6 mb-3">
-                                    <label for="toLeague" class="form-label">Target League</label>
-                                    <select class="form-select" id="toLeague" required>
-                                        <option value="">Select League</option>
-                                        <option value="Premier League" selected>Premier League</option>
-                                        <option value="La Liga">La Liga</option>
-                                        <option value="Serie A">Serie A</option>
-                                        <option value="Bundesliga">Bundesliga</option>
-                                        <option value="Ligue 1">Ligue 1</option>
-                                        <option value="Eredivisie">Eredivisie</option>
-                                        <option value="Primeira Liga">Primeira Liga</option>
-                                    </select>
-                                </div>
-                            </div>
-
-                            <div class="mb-3">
-                                <label for="position" class="form-label">Position</label>
-                                <select class="form-select" id="position" required>
-                                    <option value="">Select Position</option>
-                                    <option value="Goalkeeper">Goalkeeper</option>
-                                    <option value="Centre-Back">Centre-Back</option>
-                                    <option value="Full-Back">Full-Back</option>
-                                    <option value="Defensive Midfield">Defensive Midfield</option>
-                                    <option value="Central Midfield">Central Midfield</option>
-                                    <option value="Attacking Midfield">Attacking Midfield</option>
-                                    <option value="Winger">Winger</option>
-                                    <option value="Forward" selected>Forward</option>
-                                </select>
-                            </div>
-
-                            <h6 class="text-muted mb-3">Performance Statistics (Current Season)</h6>
-                            
-                            <div class="row">
-                                <div class="col-md-6 mb-3">
-                                    <label for="minutes" class="form-label">Minutes Played</label>
-                                    <input type="number" class="form-control" id="minutes" 
-                                           min="0" value="1500" required>
-                                </div>
-                                <div class="col-md-6 mb-3">
-                                    <label for="goals" class="form-label">Goals</label>
-                                    <input type="number" class="form-control" id="goals" 
-                                           min="0" value="8" required>
-                                </div>
-                            </div>
-
-                            <div class="row">
-                                <div class="col-md-6 mb-3">
-                                    <label for="assists" class="form-label">Assists</label>
-                                    <input type="number" class="form-control" id="assists" 
-                                           min="0" value="3" required>
-                                </div>
-                                <div class="col-md-6 mb-3">
-                                    <label for="xg" class="form-label">Expected Goals (xG)</label>
-                                    <input type="number" class="form-control" id="xg" 
-                                           min="0" step="0.1" value="7.5" required>
-                                </div>
-                            </div>
-
-                            <div class="mb-3">
-                                <label for="xa" class="form-label">Expected Assists (xA)</label>
-                                <input type="number" class="form-control" id="xa" 
-                                       min="0" step="0.1" value="2.8" required>
-                            </div>
-
-                            <button type="submit" class="btn btn-primary btn-lg w-100">
-                                <span class="spinner-border spinner-border-sm me-2" role="status"></span>
-                                <i class="fas fa-magic me-2"></i>Predict Adaptability
-                            </button>
-                        </form>
-                    </div>
+        <div class="grid" id="predictor">
+            <!-- Form -->
+            <section class="card">
+                <div class="card-head">
+                    <h2>Player</h2>
+                    <span class="step">Step 1 of 2</span>
                 </div>
-            </div>
+
+                <form id="predictionForm" novalidate>
+                    <div class="fields two">
+                        <div>
+                            <label class="field-label" for="playerName">Name</label>
+                            <input type="text" id="playerName" placeholder="e.g. Matheus Cunha" required>
+                        </div>
+                        <div>
+                            <label class="field-label" for="age">Age</label>
+                            <input type="number" id="age" min="15" max="45" value="25" required>
+                        </div>
+                    </div>
+
+                    <span class="group-label">Transfer</span>
+                    <div class="flow">
+                        <div>
+                            <label class="field-label" for="fromLeague">From</label>
+                            <select id="fromLeague" required>
+                                <option value="">Select</option>
+                                <option value="Premier League">Premier League</option>
+                                <option value="La Liga">La Liga</option>
+                                <option value="Serie A">Serie A</option>
+                                <option value="Bundesliga">Bundesliga</option>
+                                <option value="Ligue 1" selected>Ligue 1</option>
+                            </select>
+                        </div>
+                        <div class="flow-arrow" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+                        </div>
+                        <div>
+                            <label class="field-label" for="toLeague">To</label>
+                            <select id="toLeague" required>
+                                <option value="">Select</option>
+                                <option value="Premier League" selected>Premier League</option>
+                                <option value="La Liga">La Liga</option>
+                                <option value="Serie A">Serie A</option>
+                                <option value="Bundesliga">Bundesliga</option>
+                                <option value="Ligue 1">Ligue 1</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <span class="group-label">Position</span>
+                    <div class="segments" role="group" aria-label="Position">
+                        <button type="button" class="segment" data-position="Goalkeeper" aria-pressed="false">Goalkeeper</button>
+                        <button type="button" class="segment" data-position="Defender" aria-pressed="false">Defender</button>
+                        <button type="button" class="segment" data-position="Midfielder" aria-pressed="false">Midfielder</button>
+                        <button type="button" class="segment" data-position="Forward" aria-pressed="true">Forward</button>
+                    </div>
+                    <input type="hidden" id="position" value="Forward">
+
+                    <span class="group-label">Season before the move</span>
+                    <div class="fields two">
+                        <div class="stat-input">
+                            <label class="field-label" for="minutes">Minutes</label>
+                            <input type="number" id="minutes" min="1" value="1500" required>
+                            <span class="unit">min</span>
+                        </div>
+                        <div class="stat-input">
+                            <label class="field-label" for="goals">Goals</label>
+                            <input type="number" id="goals" min="0" value="8" required>
+                        </div>
+                        <div class="stat-input">
+                            <label class="field-label" for="assists">Assists</label>
+                            <input type="number" id="assists" min="0" value="3" required>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="submit" id="submitBtn">Estimate adaptation</button>
+                    <p class="error" id="formError" role="alert" hidden></p>
+                </form>
+            </section>
 
             <!-- Results -->
-            <div class="col-lg-6">
-                <div id="resultsContainer" style="display: none;">
-                    <div class="card card-custom prediction-card mb-4">
-                        <div class="card-body text-center">
-                            <h4 class="card-title mb-3">
-                                <i class="fas fa-target me-2"></i>Adaptability Score
-                            </h4>
-                            <div class="success-indicator" id="adaptabilityScore">--</div>
-                            <p class="mb-2" id="riskLevel">--</p>
-                            <p class="mb-0" id="leagueTransition">--</p>
+            <div class="stack">
+                <section class="card" id="emptyState">
+                    <div class="empty">
+                        <div class="empty-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
                         </div>
+                        <h3>No estimate yet</h3>
+                        <p>Fill in the player's details and press “Estimate adaptation”.</p>
                     </div>
+                </section>
 
-                    <div class="card card-custom">
-                        <div class="card-header">
-                            <h5 class="mb-0">
-                                <i class="fas fa-chart-bar me-2"></i>Key Factors
-                            </h5>
-                        </div>
-                        <div class="card-body">
-                            <div id="featureImportance">
-                                <!-- Feature importance will be populated here -->
-                            </div>
+                <section class="card" id="resultsContainer" hidden>
+                    <div class="card-head">
+                        <h2>Adaptability</h2>
+                        <span class="step" id="leagueTransition">--</span>
+                    </div>
+                    <div class="gauge" aria-hidden="true">
+                        <svg viewBox="0 0 120 120">
+                            <circle class="gauge-track" cx="60" cy="60" r="54" fill="none" stroke-width="10"/>
+                            <circle class="gauge-fill" id="gaugeFill" cx="60" cy="60" r="54" fill="none" stroke-width="10" stroke-linecap="round" stroke-dasharray="339.29" stroke-dashoffset="339.29"/>
+                        </svg>
+                        <div class="gauge-value">
+                            <div class="gauge-number"><span id="adaptabilityScore">--</span><small>%</small></div>
+                            <div class="gauge-caption">Score</div>
                         </div>
                     </div>
+                    <div class="risk"><span id="riskLevel">--</span></div>
+                    <p class="recommendation" id="recommendation"></p>
+                </section>
 
-                    <div class="card card-custom mt-4">
-                        <div class="card-header">
-                            <h5 class="mb-0">
-                                <i class="fas fa-lightbulb me-2"></i>Recommendation
-                            </h5>
-                        </div>
-                        <div class="card-body">
-                            <p id="recommendation" class="mb-0">--</p>
-                        </div>
-                    </div>
-                </div>
+                <section class="card" id="factorsContainer" hidden>
+                    <h2>Model factors</h2>
+                    <div id="featureImportance"></div>
+                    <p class="muted">Overall weights of the model, the same for every player. They do not explain this particular score.</p>
+                </section>
 
-                <!-- Quick Examples -->
-                <div id="examplesContainer">
-                    <div class="card card-custom">
-                        <div class="card-header">
-                            <h5 class="mb-0">
-                                <i class="fas fa-star me-2"></i>Quick Examples
-                            </h5>
-                        </div>
-                        <div class="card-body">
-                            <p class="text-muted mb-3">Try these example players:</p>
-                            
-                            <button class="btn btn-outline-primary btn-sm me-2 mb-2" 
-                                    onclick="loadExample('ekitike')">
-                                Hugo Ekitike (L1 → PL)
-                            </button>
-                            
-                            <button class="btn btn-outline-success btn-sm me-2 mb-2" 
-                                    onclick="loadExample('joao_pedro')">
-                                João Pedro (Serie A → PL)
-                            </button>
-                            
-                            <button class="btn btn-outline-info btn-sm me-2 mb-2" 
-                                    onclick="loadExample('szoboszlai')">
-                                Szoboszlai (Bundesliga → PL)
-                            </button>
-                        </div>
+                <section class="card" id="examplesContainer">
+                    <h2>Try an example</h2>
+                    <div class="examples">
+                        <button class="example" type="button" onclick="loadExample('matheus_cunha')">
+                            <span class="avatar">MC</span>
+                            <span><span class="example-name">Matheus Cunha</span><span class="example-meta">La Liga → PL</span></span>
+                        </button>
+                        <button class="example" type="button" onclick="loadExample('kulusevski')">
+                            <span class="avatar">DK</span>
+                            <span><span class="example-name">D. Kulusevski</span><span class="example-meta">Serie A → PL</span></span>
+                        </button>
+                        <button class="example" type="button" onclick="loadExample('vicario')">
+                            <span class="avatar">GV</span>
+                            <span><span class="example-name">G. Vicario</span><span class="example-meta">Serie A → PL</span></span>
+                        </button>
                     </div>
-                </div>
+                </section>
             </div>
         </div>
-    </div>
 
-    <!-- About Section -->
-    <section id="about" class="bg-light py-5">
-        <div class="container">
-            <div class="row">
-                <div class="col-lg-8 mx-auto text-center">
-                    <h2 class="mb-4">About LigueFit Index</h2>
-                    <p class="lead mb-4">
-                        LigueFit Index uses machine learning to predict how well a football player will adapt 
-                        to a new league based on their performance history and league characteristics.
-                    </p>
-                    
-                    <div class="row mt-5">
-                        <div class="col-md-4 mb-4">
-                            <div class="card card-custom h-100">
-                                <div class="card-body text-center">
-                                    <i class="fas fa-database fa-3x text-primary mb-3"></i>
-                                    <h5>Data-Driven</h5>
-                                    <p>Based on historical transfer data and player performance metrics</p>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="col-md-4 mb-4">
-                            <div class="card card-custom h-100">
-                                <div class="card-body text-center">
-                                    <i class="fas fa-brain fa-3x text-success mb-3"></i>
-                                    <h5>AI-Powered</h5>
-                                    <p>Advanced machine learning algorithms analyze complex patterns</p>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="col-md-4 mb-4">
-                            <div class="card card-custom h-100">
-                                <div class="card-body text-center">
-                                    <i class="fas fa-globe fa-3x text-info mb-3"></i>
-                                    <h5>Multi-League</h5>
-                                    <p>Covers major European leagues with unique characteristics</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
+        <section class="about" id="about">
+            <h2>About LigueFit Index</h2>
+            <p>A machine learning prototype. It compares a player's recent statistics with transfers between the big five European leagues, built from API-Football data.</p>
+        </section>
+    </main>
 
-    <!-- Footer -->
-    <footer class="bg-dark text-white py-4">
-        <div class="container text-center">
-            <p class="mb-0">
-                &copy; 2024 LigueFit Index. Built with ❤️ for football analytics.
-            </p>
+    <footer>
+        <div class="wrap">
+            <span>LigueFit Index · Prototype</span>
+            <span>Not for recruitment decisions</span>
         </div>
     </footer>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
-    
     <script>
-        // Example data
+        // Real players from the transfer dataset: stats are the season before the move
         const examples = {
-            ekitike: {
-                playerName: 'Hugo Ekitike',
-                age: 21,
-                fromLeague: 'Ligue 1',
-                toLeague: 'Premier League',
-                position: 'Forward',
-                minutes: 1200,
-                goals: 8,
-                assists: 2,
-                xg: 7.5,
-                xa: 2.1
+            matheus_cunha: {
+                playerName: 'Matheus Cunha', age: 24, fromLeague: 'La Liga', toLeague: 'Premier League',
+                position: 'Forward', minutes: 1752, goals: 4, assists: 4
             },
-            joao_pedro: {
-                playerName: 'João Pedro',
-                age: 22,
-                fromLeague: 'Serie A',
-                toLeague: 'Premier League',
-                position: 'Forward',
-                minutes: 2200,
-                goals: 11,
-                assists: 6,
-                xg: 9.8,
-                xa: 5.2
+            kulusevski: {
+                playerName: 'D. Kulusevski', age: 23, fromLeague: 'Serie A', toLeague: 'Premier League',
+                position: 'Midfielder', minutes: 2741, goals: 3, assists: 8
             },
-            szoboszlai: {
-                playerName: 'Dominik Szoboszlai',
-                age: 22,
-                fromLeague: 'Bundesliga',
-                toLeague: 'Premier League',
-                position: 'Central Midfield',
-                minutes: 2400,
-                goals: 3,
-                assists: 4,
-                xg: 4.2,
-                xa: 6.5
+            vicario: {
+                playerName: 'G. Vicario', age: 27, fromLeague: 'Serie A', toLeague: 'Premier League',
+                position: 'Goalkeeper', minutes: 2904, goals: 0, assists: 0
             }
         };
 
-        // Load example data
-        function loadExample(exampleKey) {
-            const example = examples[exampleKey];
-            if (!example) return;
+        const GAUGE_LENGTH = 2 * Math.PI * 54;
 
-            Object.keys(example).forEach(key => {
-                const element = document.getElementById(key);
-                if (element) {
-                    element.value = example[key];
-                }
+        function setPosition(position) {
+            document.getElementById('position').value = position;
+            document.querySelectorAll('.segment').forEach(button => {
+                button.setAttribute('aria-pressed', button.dataset.position === position ? 'true' : 'false');
             });
         }
 
-        // Form submission
-        document.getElementById('predictionForm').addEventListener('submit', async function(e) {
+        document.querySelectorAll('.segment').forEach(button => {
+            button.addEventListener('click', () => setPosition(button.dataset.position));
+        });
+
+        function loadExample(exampleKey) {
+            const example = examples[exampleKey];
+            if (!example) return;
+            Object.keys(example).forEach(key => {
+                if (key === 'position') {
+                    setPosition(example.position);
+                    return;
+                }
+                const element = document.getElementById(key);
+                if (element) element.value = example[key];
+            });
+            clearError();
+        }
+
+        function showError(message) {
+            const error = document.getElementById('formError');
+            error.textContent = message;
+            error.hidden = false;
+        }
+
+        function clearError() {
+            document.getElementById('formError').hidden = true;
+        }
+
+        document.getElementById('predictionForm').addEventListener('submit', async function (e) {
             e.preventDefault();
-            
+            clearError();
+
             const form = e.target;
-            const submitBtn = form.querySelector('button[type="submit"]');
-            
-            // Show loading state
-            form.classList.add('loading');
+            const submitBtn = document.getElementById('submitBtn');
+            if (!form.reportValidity()) return;
+
             submitBtn.disabled = true;
-            
-            // Hide results and examples
-            document.getElementById('resultsContainer').style.display = 'none';
-            document.getElementById('examplesContainer').style.display = 'none';
-            
-            // Collect form data
-            const formData = new FormData(form);
-            const data = {};
-            
-            // Get all form values
-            data.player_name = document.getElementById('playerName').value;
-            data.age = document.getElementById('age').value;
-            data.from_league = document.getElementById('fromLeague').value;
-            data.to_league = document.getElementById('toLeague').value;
-            data.position = document.getElementById('position').value;
-            data.minutes = document.getElementById('minutes').value;
-            data.goals = document.getElementById('goals').value;
-            data.assists = document.getElementById('assists').value;
-            data.xg = document.getElementById('xg').value;
-            data.xa = document.getElementById('xa').value;
-            
+            submitBtn.textContent = 'Estimating…';
+
+            const data = {
+                player_name: document.getElementById('playerName').value,
+                age: document.getElementById('age').value,
+                from_league: document.getElementById('fromLeague').value,
+                to_league: document.getElementById('toLeague').value,
+                position: document.getElementById('position').value,
+                minutes: document.getElementById('minutes').value,
+                goals: document.getElementById('goals').value,
+                assists: document.getElementById('assists').value
+            };
+
             try {
                 const response = await fetch('/predict', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(data)
                 });
-                
                 const result = await response.json();
-                
+
                 if (response.ok) {
                     displayResults(result);
                 } else {
-                    alert('Error: ' + (result.error || 'Unknown error occurred'));
+                    showError(result.error || 'Something went wrong. Please try again.');
                 }
-                
             } catch (error) {
                 console.error('Error:', error);
-                alert('Network error. Please try again.');
+                showError('Network error. Please try again.');
             } finally {
-                // Hide loading state
-                form.classList.remove('loading');
                 submitBtn.disabled = false;
+                submitBtn.textContent = 'Estimate adaptation';
             }
         });
 
         function displayResults(result) {
-            // Show results container
-            document.getElementById('resultsContainer').style.display = 'block';
-            
-            // Update main score
-            document.getElementById('adaptabilityScore').textContent = result.adaptability_score + '%';
-            
-            // Update risk level with color
-            const riskElement = document.getElementById('riskLevel');
-            riskElement.textContent = result.risk_level;
-            riskElement.className = 'mb-2 ' + 
-                (result.risk_level === 'Low Risk' ? 'risk-low' : 
-                 result.risk_level === 'Medium Risk' ? 'risk-medium' : 'risk-high');
-            
-            // Update league transition
+            document.getElementById('emptyState').hidden = true;
+            document.getElementById('resultsContainer').hidden = false;
+            document.getElementById('factorsContainer').hidden = false;
+
+            const score = Number(result.adaptability_score);
+            const color = result.risk_level === 'Low Risk' ? 'var(--low)'
+                        : result.risk_level === 'Medium Risk' ? 'var(--medium)' : 'var(--high)';
+            const gauge = document.getElementById('gaugeFill');
+            gauge.style.stroke = color;
+            gauge.style.strokeDashoffset = GAUGE_LENGTH * (1 - Math.min(Math.max(score, 0), 100) / 100);
+
+            animateNumber(document.getElementById('adaptabilityScore'), score);
+
+            const risk = document.getElementById('riskLevel');
+            const level = result.risk_level === 'Low Risk' ? 'low'
+                        : result.risk_level === 'Medium Risk' ? 'medium' : 'high';
+            risk.textContent = result.risk_level;
+            risk.className = level;
+            risk.dataset.level = level;
+            risk.style.color = color;
+
             document.getElementById('leagueTransition').textContent = result.league_transition;
-            
-            // Update recommendation
             document.getElementById('recommendation').textContent = result.recommendation;
-            
-            // Update feature importance
+
             displayFeatureImportance(result.feature_importance);
+        }
+
+        function animateNumber(element, target) {
+            const start = performance.now();
+            const duration = 900;
+            function frame(now) {
+                const progress = Math.min((now - start) / duration, 1);
+                const eased = 1 - Math.pow(1 - progress, 3);
+                element.textContent = Math.round(target * eased);
+                if (progress < 1) requestAnimationFrame(frame);
+            }
+            requestAnimationFrame(frame);
         }
 
         function displayFeatureImportance(features) {
             const container = document.getElementById('featureImportance');
             container.innerHTML = '';
-            
-            if (!features || Object.keys(features).length === 0) {
-                container.innerHTML = '<p class="text-muted">No feature importance data available</p>';
+
+            const entries = Object.entries(features || {});
+            if (entries.length === 0) {
+                container.innerHTML = '<p class="muted">No factor data available.</p>';
                 return;
             }
-            
-            const maxImportance = Math.max(...Object.values(features));
-            
-            Object.entries(features).slice(0, 5).forEach(([feature, importance]) => {
+
+            const maxImportance = Math.max(...entries.map(([, value]) => value));
+            entries.slice(0, 5).forEach(([feature, importance], index) => {
                 const percentage = (importance / maxImportance) * 100;
-                
-                const featureDiv = document.createElement('div');
-                featureDiv.className = 'mb-3';
-                featureDiv.innerHTML = `
-                    <div class="d-flex justify-content-between mb-1">
-                        <span class="text-muted small">${formatFeatureName(feature)}</span>
-                        <span class="text-muted small">${(importance * 100).toFixed(1)}%</span>
+                const row = document.createElement('div');
+                row.className = 'factor';
+                row.innerHTML = `
+                    <div class="factor-head">
+                        <span>${formatFeatureName(feature)}</span>
+                        <span>${(importance * 100).toFixed(1)}</span>
                     </div>
-                    <div class="progress" style="height: 8px;">
-                        <div class="progress-bar" role="progressbar" 
-                             style="width: ${percentage}%; background: linear-gradient(90deg, #667eea, #764ba2);"></div>
-                    </div>
+                    <div class="bar"><div style="width: 0%"></div></div>
                 `;
-                container.appendChild(featureDiv);
+                container.appendChild(row);
+                // Grow the bar after it is in the DOM so the transition plays
+                setTimeout(() => {
+                    row.querySelector('.bar > div').style.width = percentage + '%';
+                }, 60 + index * 80);
             });
         }
 
         function formatFeatureName(name) {
-            return name.replace(/_/g, ' ')
-                      .replace(/\b\w/g, l => l.toUpperCase())
-                      .replace('Per 90', '/90')
-                      .replace('Xg', 'xG')
-                      .replace('Xa', 'xA');
+            return name.replace(/_/g, ' ').replace(/\b\w/g, letter => letter.toUpperCase());
         }
     </script>
 </body>

@@ -137,3 +137,5 @@ static/*.png
 .vscode/
 temp/
 logs/
+# API-Football raw cache (paid per request, licence terms apply)
+data/raw/

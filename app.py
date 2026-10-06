@@ -3,183 +3,175 @@ LigueFit Index - League Adaptability Index
 Main Flask application for predicting player success in new leagues
 """
 
+import os
+import sys
+
 from flask import Flask, render_template, request, jsonify
 from flask_cors import CORS
-import pandas as pd
-import numpy as np
 import joblib
-import os
-from src.data_processor import DataProcessor
-from src.ml_model import AdaptabilityModel
-from src.feature_engineer import FeatureEngineer
+
+# Same import style as train_model.py: the saved FeatureEngineer pickle refers to the
+# top-level `feature_engineer` module, so it must be importable under that name.
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'src'))
+
+from ml_model import AdaptabilityModel
+from feature_engineer import FeatureEngineer
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+MODEL_PATH = os.path.join(BASE_DIR, 'models', 'adaptability_model.joblib')
+FEATURE_ENGINEER_PATH = os.path.join(BASE_DIR, 'models', 'feature_engineer.joblib')
+
+# Only the leagues the model was trained on (see src/build_dataset.py)
+LEAGUES = [
+    'Premier League',
+    'La Liga',
+    'Serie A',
+    'Bundesliga',
+    'Ligue 1'
+]
+
+# Same positions as the training data (the API does not distinguish full-backs or wingers)
+POSITIONS = [
+    'Goalkeeper',
+    'Defender',
+    'Midfielder',
+    'Forward'
+]
 
 app = Flask(__name__)
-CORS(app)
 
-# Initialize components
-data_processor = DataProcessor()
-feature_engineer = None
+# CORS is off unless CORS_ORIGINS is set (e.g. "https://example.com,https://other.com")
+cors_origins = os.getenv('CORS_ORIGINS')
+if cors_origins:
+    CORS(app, resources={r'/predict': {'origins': cors_origins.split(',')}})
+
 model = None
+feature_engineer = None
+
 
 def load_model():
-    """Load the trained model if it exists, otherwise train a new one"""
+    """Load the trained model and feature engineer from disk. Returns True on success."""
     global model, feature_engineer
-    
+
+    if not (os.path.exists(MODEL_PATH) and os.path.exists(FEATURE_ENGINEER_PATH)):
+        return False
+
     try:
-        # Try to load the ML model
-        model_path = 'models/adaptability_model.joblib'
-        if os.path.exists(model_path):
-            model_data = joblib.load(model_path)
-            if isinstance(model_data, dict):
-                model = AdaptabilityModel()
-                model.best_model = model_data['model']
-                model.best_model_name = model_data['model_name']
-                model.feature_importance = model_data['feature_importance']
-                model.metrics = model_data['metrics']
-            else:
-                model = model_data
-        else:
-            return train_new_model()
-        
-        # Try to load the feature engineer
-        fe_path = 'models/feature_engineer.joblib'
-        if os.path.exists(fe_path):
-            feature_engineer = FeatureEngineer.load(fe_path)
-            return True
-        else:
-            return train_new_model()
-            
+        model_data = joblib.load(MODEL_PATH)
+        model = AdaptabilityModel()
+        model.best_model = model_data['model']
+        model.best_model_name = model_data['model_name']
+        model.feature_importance = model_data['feature_importance']
+        model.metrics = model_data['metrics']
+        feature_engineer = FeatureEngineer.load(FEATURE_ENGINEER_PATH)
+        return True
     except Exception as e:
         print(f"Error loading models: {e}")
-        return train_new_model()
-
-def train_new_model():
-    """Train a new model if loading fails"""
-    global model, feature_engineer
-    
-    try:
-        print("🔄 Training new model...")
-        
-        # Load and process data
-        df = data_processor.prepare_dataset()
-        
-        # Create and fit feature engineer
-        feature_engineer = FeatureEngineer()
-        X, y = feature_engineer.fit_transform(df)
-        
-        # Train model
-        model = AdaptabilityModel()
-        model.train_and_evaluate(X, y, test_size=0.3)
-        
-        print("✅ New model trained successfully!")
-        return True
-        
-    except Exception as e:
-        print(f"❌ Error training new model: {e}")
+        model = None
+        feature_engineer = None
         return False
+
+
+def parse_player_input(data):
+    """Validate and convert the raw request data. Raises ValueError with a readable message."""
+    def number(key, default, minimum, maximum=None):
+        try:
+            value = float(data.get(key, default))
+        except (TypeError, ValueError):
+            raise ValueError(f"'{key}' must be a number")
+        if value < minimum or (maximum is not None and value > maximum):
+            upper = f" and <= {maximum}" if maximum is not None else ""
+            raise ValueError(f"'{key}' must be >= {minimum}{upper}")
+        return value
+
+    features = {
+        'age': number('age', 25, 15, 45),
+        'minutes': number('minutes', 1000, 1),
+        'goals': number('goals', 0, 0),
+        'assists': number('assists', 0, 0),
+        'from_league': data.get('from_league', 'Ligue 1'),
+        'to_league': data.get('to_league', 'Premier League'),
+        'position': data.get('position', 'Forward')
+    }
+
+    if features['from_league'] not in LEAGUES:
+        raise ValueError(f"'from_league' must be one of: {', '.join(LEAGUES)}")
+    if features['to_league'] not in LEAGUES:
+        raise ValueError(f"'to_league' must be one of: {', '.join(LEAGUES)}")
+    if features['position'] not in POSITIONS:
+        raise ValueError(f"'position' must be one of: {', '.join(POSITIONS)}")
+
+    return features
+
 
 @app.route('/')
 def index():
     """Main dashboard page"""
     return render_template('index.html')
 
+
 @app.route('/predict', methods=['GET', 'POST'])
 def predict():
     """
     Predict adaptability for a player
-    
-    Query parameters:
-    - player_name: Name of the player
+
+    Parameters (JSON body for POST, query string for GET):
+    - player_name: Name of the player (optional)
     - from_league: Current league
     - to_league: Target league
-    - age: Player age
+    - age: Player age (15-45)
     - position: Player position
-    - minutes: Minutes played
-    - goals: Goals scored
-    - assists: Assists
-    - xg: Expected goals
-    - xa: Expected assists
+    - minutes: Minutes played (> 0)
+    - goals, assists: Season statistics (>= 0)
     """
-    if not model:
-        return jsonify({'error': 'Model not loaded. Please train the model first.'}), 500
-    
+    if model is None and not load_model():
+        return jsonify({
+            'error': 'Model not loaded. Run "python train_model.py" first.'
+        }), 503
+
     try:
         if request.method == 'POST':
-            data = request.json
+            data = request.get_json(silent=True)
+            if data is None:
+                return jsonify({'error': 'Request body must be JSON'}), 400
         else:
             data = request.args.to_dict()
-        
-        # Extract features
-        features = {
-            'age': float(data.get('age', 25)),
-            'minutes': float(data.get('minutes', 1000)),
-            'goals': float(data.get('goals', 0)),
-            'assists': float(data.get('assists', 0)),
-            'xg': float(data.get('xg', 0)),
-            'xa': float(data.get('xa', 0)),
-            'from_league': data.get('from_league', 'Ligue 1'),
-            'to_league': data.get('to_league', 'Premier League'),
-            'position': data.get('position', 'Forward')
-        }
-        
-        # Engineer features
+
+        features = parse_player_input(data)
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+
+    try:
         processed_features = feature_engineer.process_single_player(features)
-        
-        # Make prediction using our custom method
         prediction, probability = model.predict_adaptability(processed_features)
-        adaptability_score = probability * 100  # Success probability as percentage
-        
-        # Get feature importance
-        feature_importance = get_feature_importance(processed_features)
-        
+        adaptability_score = probability * 100
+
         result = {
             'player_name': data.get('player_name', 'Unknown Player'),
             'adaptability_score': float(round(adaptability_score, 2)),
             'success_probability': float(round(probability, 3)),
             'risk_level': get_risk_level(adaptability_score),
-            'feature_importance': feature_importance,
+            'feature_importance': get_feature_importance(),
             'league_transition': f"{features['from_league']} → {features['to_league']}",
             'recommendation': get_recommendation(adaptability_score)
         }
-        
-        return jsonify(result)
-        
-    except Exception as e:
-        return jsonify({'error': str(e)}), 400
 
-def get_feature_importance(features):
-    """Get top contributing features for the prediction"""
-    try:
-        if not model or not feature_engineer:
-            return {}
-        
-        # Try to get feature importance from the best model
-        if hasattr(model, 'best_model') and hasattr(model.best_model, 'feature_importances_'):
-            feature_names = feature_engineer.get_feature_names()
-            importance_dict = dict(zip(feature_names, model.best_model.feature_importances_))
-            
-            # Convert numpy types to Python native types for JSON serialization
-            importance_dict = {k: float(v) for k, v in importance_dict.items()}
-            
-        elif hasattr(model, 'feature_importance') and model.feature_importance:
-            importance_dict = {k: float(v) for k, v in model.feature_importance.items()}
-        else:
-            # Fallback: return some default important features
-            return {
-                'age': 0.15,
-                'pre_goals_per_90': 0.14,
-                'league_transition': 0.12,
-                'position': 0.10,
-                'pre_minutes': 0.08
-            }
-        
-        # Sort by importance and return top 5
-        sorted_features = sorted(importance_dict.items(), key=lambda x: x[1], reverse=True)
-        return dict(sorted_features[:5])
-        
+        return jsonify(result)
+
     except Exception as e:
-        print(f"Error getting feature importance: {e}")
+        print(f"Prediction error: {e}")
+        return jsonify({'error': 'Prediction failed'}), 500
+
+
+def get_feature_importance():
+    """
+    Top 5 features of the trained model.
+    This is global importance: the same for every player, not a per-prediction explanation.
+    """
+    if model is None or not model.feature_importance:
         return {}
+    return dict(list(model.feature_importance.items())[:5])
+
 
 def get_risk_level(score):
     """Determine risk level based on adaptability score"""
@@ -190,6 +182,7 @@ def get_risk_level(score):
     else:
         return "High Risk"
 
+
 def get_recommendation(score):
     """Get recommendation based on adaptability score"""
     if score >= 70:
@@ -199,67 +192,42 @@ def get_recommendation(score):
     else:
         return "High risk transfer. Requires careful evaluation and strong support system."
 
-@app.route('/train_model', methods=['POST'])
-def train_model():
-    """Train the adaptability model"""
-    try:
-        # This would typically load data and train the model
-        # For now, we'll return a placeholder response
-        return jsonify({
-            'status': 'success',
-            'message': 'Model training initiated. This is a placeholder implementation.',
-            'model_metrics': {
-                'accuracy': 0.75,
-                'f1_score': 0.72,
-                'auc_roc': 0.78
-            }
-        })
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
 
 @app.route('/api/leagues')
 def get_leagues():
     """Get available leagues"""
-    leagues = [
-        'Premier League',
-        'La Liga',
-        'Serie A',
-        'Bundesliga',
-        'Ligue 1',
-        'Eredivisie',
-        'Primeira Liga',
-        'Belgian Pro League'
-    ]
-    return jsonify(leagues)
+    return jsonify(LEAGUES)
+
 
 @app.route('/api/positions')
 def get_positions():
     """Get available positions"""
-    positions = [
-        'Goalkeeper',
-        'Centre-Back',
-        'Full-Back',
-        'Defensive Midfield',
-        'Central Midfield',
-        'Attacking Midfield',
-        'Winger',
-        'Forward'
-    ]
-    return jsonify(positions)
+    return jsonify(POSITIONS)
+
 
 @app.errorhandler(404)
 def not_found(error):
+    if request.path.startswith('/api/') or request.path == '/predict':
+        return jsonify({'error': 'Not found'}), 404
     return render_template('404.html'), 404
+
 
 @app.errorhandler(500)
 def internal_error(error):
+    if request.path.startswith('/api/') or request.path == '/predict':
+        return jsonify({'error': 'Internal server error'}), 500
     return render_template('500.html'), 500
 
+
 if __name__ == '__main__':
-    # Try to load existing model
-    model_loaded = load_model()
-    if not model_loaded:
-        print("Warning: No trained model found. Please train the model first.")
-    
-    # Run the app
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    if sys.stdout.encoding and sys.stdout.encoding.lower() != 'utf-8' and hasattr(sys.stdout, 'reconfigure'):
+        sys.stdout.reconfigure(encoding='utf-8')
+
+    if not load_model():
+        print("Warning: No trained model found. Run 'python train_model.py' first.")
+
+    app.run(
+        debug=os.getenv('FLASK_DEBUG', '0') == '1',
+        host=os.getenv('FLASK_HOST', '127.0.0.1'),
+        port=int(os.getenv('FLASK_PORT', '5000'))
+    )

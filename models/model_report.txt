@@ -2,35 +2,35 @@
         LigueFit Index - Model Performance Report
         =======================================
         
-        Best Model: random_forest
+        Best Model: logistic_regression
         
         Test Set Performance:
-        - Accuracy: 0.778
-        - Precision: 0.714
+        - Accuracy: 0.714
+        - Precision: 0.667
         - Recall: 1.000
-        - F1-Score: 0.833
-        - ROC-AUC: 0.650
+        - F1-Score: 0.800
+        - ROC-AUC: 0.750
         
         Classification Report:
                       precision    recall  f1-score   support
 
-     Failure       1.00      0.50      0.67         4
-     Success       0.71      1.00      0.83         5
+     Failure       1.00      0.33      0.50         3
+     Success       0.67      1.00      0.80         4
 
-    accuracy                           0.78         9
-   macro avg       0.86      0.75      0.75         9
-weighted avg       0.84      0.78      0.76         9
+    accuracy                           0.71         7
+   macro avg       0.83      0.67      0.65         7
+weighted avg       0.81      0.71      0.67         7
 
         
         Top 10 Most Important Features:
         
-         1. pre_minutes: 0.0776
-         2. pre_goals_per_90: 0.0728
-         3. pre_xg_per_90: 0.0663
-         4. pre_finishing_ability: 0.0640
-         5. age_goals_interaction: 0.0635
-         6. age_physicality_interaction: 0.0599
-         7. performance_under_pressure: 0.0553
-         8. pre_xa_per_90: 0.0525
-         9. transition_difficulty: 0.0502
-        10. league_rank_jump: 0.0477
+         1. transition_type_encoded: 0.7577
+         2. pre_minutes: 0.7076
+         3. from_league_rank: 0.6601
+         4. age: 0.6270
+         5. to_league_rank: 0.5013
+         6. pre_goals_per_90: 0.4186
+         7. age_goals_interaction: 0.3724
+         8. transition_difficulty: 0.2252
+         9. is_att: 0.2062
+        10. is_def: 0.1983

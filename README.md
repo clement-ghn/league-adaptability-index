@@ -1,240 +1,243 @@
-# 🎯 LigueFit Index - League Adaptability Predictor
+# LigueFit Index - League Adaptability Predictor
 
-> *"Predicting player success across football leagues using machine learning"*
+> *"A prototype that estimates how a player might adapt when moving between football leagues"*
 
-**LigueFit Index** is an AI-powered system that evaluates the probability of a football player succeeding when transferring between different leagues. Using advanced machine learning algorithms, it analyzes player performance, league characteristics, and historical transfer data to provide adaptability scores and risk assessments.
+**LigueFit Index** is a Flask web app with a small scikit-learn / XGBoost pipeline. Given a player's season statistics and a league transfer (for example Bundesliga → Premier League), it returns an adaptability score (0–100 %), a risk level and a short recommendation.
 
-## 🌟 Key Features
+> ⚠️ **Status: prototype, not yet evaluated.** The training data is being collected from API-Football and is still incomplete. The current model was trained on a few dozen transfers at most, so its metrics are not meaningful. Do not use the scores for real recruitment decisions.
 
-- **🤖 ML-Powered Predictions**: XGBoost, Random Forest, and Logistic Regression models
-- **📊 Interactive Dashboard**: Clean web interface built with Flask and Bootstrap
-- **⚽ Real Player Analysis**: Test with examples like Hugo Ekitike, João Pedro, etc.
-- **🏟️ Multi-League Support**: Premier League, La Liga, Serie A, Bundesliga, Ligue 1
-- **📈 Risk Assessment**: Low/Medium/High risk classification with explanations
-- **🔍 Feature Importance**: Understand what factors drive predictions
+## Features
 
-## 🚀 Quick Start
+- **Web dashboard** (`/`): enter a player's stats and a transfer, get a score and risk level
+- **JSON API** (`/predict`): GET or POST, with input validation and clear error messages
+- **Data collection** (`src/build_dataset.py`): builds the transfer dataset from API-Football, resumable and rate-limited
+- **Training pipeline** (`train_model.py`): feature engineering, model comparison, saved artifacts and a text report
+- **Models compared**: Logistic Regression, Random Forest, Gradient Boosting, XGBoost
+
+## Quick Start
 
 ### 1. Installation
 
 ```bash
-# Clone the repository
 git clone https://github.com/clement-ghn/league-adaptability-index.git
 cd league-adaptability-index
 
-# Install dependencies
+python -m venv venv
+source venv/bin/activate        # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-### 2. Train the Model
+### 2. Build the dataset
+
+The dataset is built from [API-Football](https://www.api-football.com/) and is not stored in the repository (`data/*.csv` and `data/raw/` are git-ignored). You need an API key:
 
 ```bash
-# Train and save the ML model
+# .env at the project root
+API_FOOTBALL_KEY=your_key_here
+```
+
+```bash
+python src/build_dataset.py
+```
+
+The free plan allows 100 requests per day and about 10 per minute. The script respects both limits and stops before the daily quota is used up. Every API response is cached in `data/raw/`, so running the script again only fetches what is missing. Run it daily until it prints `Dataset written` with the expected number of rows.
+
+### 3. Train the model
+
+```bash
 python train_model.py
 ```
 
-### 3. Run the Web App
+This writes `models/adaptability_model.joblib`, `models/feature_engineer.joblib`, `models/model_report.txt` and the plots in `static/`. It stops if the dataset is empty, and warns if it has fewer than 100 transfers.
+
+### 4. Run the web app
 
 ```bash
-# Start the Flask application
 python app.py
 ```
 
-Visit `http://localhost:5000` to access the dashboard!
+Open `http://127.0.0.1:5000`.
 
-## 📊 How It Works
+The app loads the saved model at startup. If it is missing, or was trained with an older pipeline, `/predict` returns an error until you run `train_model.py` again.
 
-### The Science Behind LigueFit Index
+### Configuration (environment variables)
 
-1. **Data Collection**: Player stats, transfer data, league characteristics
-2. **Feature Engineering**: Create 20+ features including:
-   - Performance metrics (goals/90, xG, xA)
-   - League transition difficulty
-   - Age and position factors
-   - Physical and tactical adaptability
+| Variable | Default | Purpose |
+|---|---|---|
+| `API_FOOTBALL_KEY` | *(unset)* | API-Football key, read from `.env`. Only for `src/build_dataset.py` |
+| `FLASK_HOST` | `127.0.0.1` | Interface to bind. Set `0.0.0.0` only if you need network access |
+| `FLASK_PORT` | `5000` | Port |
+| `FLASK_DEBUG` | `0` | Set to `1` to enable the Flask debugger (development only) |
+| `CORS_ORIGINS` | *(unset)* | Comma-separated origins allowed to call `/predict` from a browser |
+| `OPTA_API_KEY` | *(unset)* | Only for `update_opta_data.py` (see [Data](#data)) |
 
-3. **Machine Learning**: Train multiple models and select the best performer
-4. **Prediction**: Generate adaptability scores (0-100%) with risk levels
+## Data
 
-### Example Prediction
+**Source:** API-Football (v3), via `src/api_football.py` and `src/build_dataset.py`.
 
-```python
-# Hugo Ekitike (Ligue 1 → Premier League)
-{
-    "adaptability_score": 45.2,
-    "risk_level": "Medium Risk", 
-    "recommendation": "Moderate risk transfer. Consider gradual integration.",
-    "key_factors": ["age", "league_intensity_jump", "previous_performance"]
-}
-```
+**What is collected:**
 
-## 🏗️ Project Structure
+1. Team lists for the five leagues (Premier League, La Liga, Serie A, Bundesliga, Ligue 1), season 2023.
+2. The full transfer history of each team. Only permanent moves between two of these leagues are kept (no loans).
+3. Each player's club stats for the season before the move and the season after it (national-team games are excluded).
 
-```
-league-adaptability-index/
-├── src/                          # Core modules
-│   ├── data_processor.py         # Data loading and processing
-│   ├── feature_engineer.py       # Feature engineering pipeline
-│   └── ml_model.py              # Machine learning models
-├── templates/                    # Flask HTML templates
-│   └── index.html               # Main dashboard
-├── static/                      # CSS, JS, images
-├── models/                      # Trained ML models
-├── data/                        # Dataset files
-├── notebooks/                   # Jupyter analysis
-│   └── liguefit_index_exploration.ipynb
-├── app.py                       # Flask web application
-├── train_model.py              # Model training script
-└── requirements.txt            # Dependencies
-```
+**Current scope:** transfers in the summer 2023 window (season 2022 before, season 2023 after). Other windows can be added in `TRANSFER_WINDOWS` in `src/build_dataset.py`, at the cost of more API requests.
 
-## 🔬 Technical Details
+**Filters:** a player needs at least 900 minutes both before and after the move.
 
-### Machine Learning Pipeline
+**Label (`success`):** defined in [`docs/success_rule.md`](docs/success_rule.md). It is a first version, to be refined before the model results are interpreted. Any change to the rule changes what the score means.
 
-- **Models Tested**: Logistic Regression, Random Forest, Gradient Boosting, XGBoost
-- **Best Performer**: XGBoost with F1-score of ~0.72
-- **Features**: 20+ engineered features including league difficulty metrics
-- **Validation**: Cross-validation with stratified sampling
+**Not available from this source:** expected goals (xG / xA) and transfer fees. The features that used them were removed.
 
-### Key Features
+## How It Works
 
-| Feature Category | Examples |
-|-----------------|----------|
-| **Player Profile** | Age, position, playing time |
-| **Performance** | Goals/90, assists/90, xG, xA |
-| **League Characteristics** | Intensity, pace, physicality |
-| **Transition Factors** | League difficulty jump, adaptation history |
+1. **Data** (`src/data_processor.py`): loads the transfer dataset, cleans it, computes per-90 statistics and league-difficulty features.
+2. **Feature engineering** (`src/feature_engineer.py`): position encoding, league-jump features (intensity, pace, physicality, pressing), age and performance interactions, scaling. Inputs are pre-transfer statistics, age, position and leagues.
+3. **Model** (`src/ml_model.py`): trains the four models above, picks the best by F1, saves it.
+4. **Prediction** (`app.py`): validates the request, applies the same feature pipeline, returns `P(success)` as the adaptability score.
 
-### League Characteristics Matrix
+### Risk levels and recommendations
 
-| League | Intensity | Pace | Technical | Physical |
-|--------|-----------|------|-----------|----------|
-| **Premier League** | 0.95 | 0.90 | 0.80 | 0.95 |
-| **La Liga** | 0.75 | 0.70 | 0.95 | 0.70 |
-| **Serie A** | 0.80 | 0.75 | 0.90 | 0.85 |
-| **Bundesliga** | 0.88 | 0.92 | 0.85 | 0.90 |
-| **Ligue 1** | 0.78 | 0.82 | 0.85 | 0.80 |
+These thresholds are fixed rules in `app.py`, not calibrated against outcomes:
 
-## 📈 Example Results
+| Score | Risk level |
+|---|---|
+| ≥ 70 | Low Risk |
+| 50 – 69.99 | Medium Risk |
+| < 50 | High Risk |
 
-### Success Stories
-- **João Pedro** (Serie A → PL): 78% adaptability score ✅
-- **Szoboszlai** (Bundesliga → PL): 71% adaptability score ✅
+### League characteristics
 
-### Risk Cases  
-- **Hugo Ekitike** (Ligue 1 → PL): 45% adaptability score ⚠️
+Each league has five characteristics (intensity, pace, technical, physicality, pressing) on a 0–1 scale. The values are **estimates** from general football knowledge, not measured data. They are used to compute the "jump" between two leagues.
 
-## 🛠️ API Usage
+`data/opta_league_characteristics.json` overrides these when present and less than 30 days old. In the repository it is older than that, so the estimates are used. Note that its `source` field says "Opta Sports API", but its values come from the hard-coded estimates in `update_opta_data.py` (the branch used when no key is set).
 
-### REST Endpoints
+## Model Results
+
+**No valid results yet.** `models/model_report.txt` is regenerated on every training run, but while the dataset has only a few dozen transfers, the held-out set has a handful of players and one prediction changes every metric. Results will be documented here once the dataset is complete.
+
+Metrics to look at, once the dataset is larger:
+
+- Repeated cross-validation, not a single small split
+- ROC-AUC (above 0.5 means the score ranks players better than chance)
+- A baseline that always predicts the majority class
+
+## API
+
+### `GET /predict` or `POST /predict`
+
+| Parameter | Type | Rule |
+|---|---|---|
+| `player_name` | string | optional, echoed back |
+| `from_league` | string | one of the five leagues from `/api/leagues` |
+| `to_league` | string | one of the five leagues from `/api/leagues` |
+| `position` | string | one of `Goalkeeper`, `Defender`, `Midfielder`, `Forward` (from `/api/positions`) |
+| `age` | number | 15 – 45 |
+| `minutes` | number | > 0 |
+| `goals`, `assists` | number | ≥ 0 |
+
+Example:
 
 ```bash
-# Predict player adaptability
-POST /predict
-{
-    "player_name": "Hugo Ekitike",
-    "age": 21,
-    "from_league": "Ligue 1",
-    "to_league": "Premier League",
-    "position": "Forward",
-    "minutes": 1200,
-    "goals": 8,
-    "assists": 2,
-    "xg": 7.5,
-    "xa": 2.1
-}
+curl -X POST http://127.0.0.1:5000/predict \
+  -H "Content-Type: application/json" \
+  -d '{"player_name": "Example profile", "age": 24, "from_league": "Bundesliga",
+       "to_league": "Premier League", "position": "Midfielder", "minutes": 2000,
+       "goals": 5, "assists": 4}'
 ```
 
-### Response Format
+Response shape (values from a model trained on a few dozen transfers, they will change after retraining):
 
 ```json
 {
-    "adaptability_score": 45.2,
-    "success_probability": 0.452,
-    "risk_level": "Medium Risk",
-    "league_transition": "Ligue 1 → Premier League",
-    "recommendation": "Moderate risk transfer...",
-    "feature_importance": {
-        "age": 0.23,
-        "intensity_jump": 0.19,
-        "pre_goals_per_90": 0.15
-    }
+    "player_name": "Example profile",
+    "adaptability_score": 38.89,
+    "success_probability": 0.389,
+    "risk_level": "High Risk",
+    "league_transition": "Bundesliga → Premier League",
+    "recommendation": "High risk transfer. Requires careful evaluation and strong support system.",
+    "feature_importance": { "...": "top 5 features of the model" }
 }
 ```
 
-## 📚 Data Sources
+`feature_importance` is the same for every player: it describes the model overall, not why this player got this score.
 
-- **Transfer Data**: Sample dataset with historical transfers
-- **Player Stats**: Goals, assists, minutes, xG, xA metrics  
-- **League Info**: Intensity, pace, technical level characteristics
-- **Future Integration**: Transfermarkt, FBref, ESPN APIs
+Errors return JSON: `400` for invalid input, `503` when the model is not trained yet, `404` / `500` otherwise.
 
-## 🎯 Roadmap
+### Other endpoints
 
-### Sprint 1 ✅ - MVP Complete
-- [x] Data processing pipeline
-- [x] Feature engineering
-- [x] ML model training
-- [x] Flask web application
-- [x] Interactive dashboard
+- `GET /api/leagues`: the five supported leagues
+- `GET /api/positions`: the four supported positions
 
-### Sprint 2 🚧 - Enhanced Features
-- [ ] Real-time data integration
-- [ ] More sophisticated league metrics
-- [ ] Player comparison tools
-- [ ] Historical success tracking
+## Project Structure
 
-### Sprint 3 📋 - Production Ready
-- [ ] Cloud deployment (Heroku/AWS)
-- [ ] Database integration
-- [ ] User authentication
-- [ ] API rate limiting
+```
+league-adaptability-index/
+├── app.py                        # Flask app: dashboard and /predict API
+├── train_model.py                # Training pipeline (run after the dataset is built)
+├── update_opta_data.py           # Refresh league characteristics from Opta (needs API key)
+├── requirements.txt              # Python dependencies
+├── src/
+│   ├── api_football.py           # API-Football client with on-disk cache and rate limiting
+│   ├── build_dataset.py          # Builds data/transfers_dataset.csv (resumable)
+│   ├── data_processor.py         # Loads the dataset, cleaning, per-90 metrics
+│   ├── feature_engineer.py       # Feature pipeline (fitted, saved with the model)
+│   ├── ml_model.py               # Model training, comparison, saving, reporting
+│   └── opta_integration.py       # Opta API client (optional)
+├── utils/
+│   └── real_data_criteria.py     # Example of league metrics computed from real stats (not wired in)
+├── data/
+│   ├── transfers_dataset.csv     # Built by src/build_dataset.py (git-ignored)
+│   ├── raw/                      # API-Football response cache (git-ignored)
+│   └── opta_league_characteristics.json
+├── models/
+│   └── model_report.txt          # Output of the last training run
+├── static/                       # Plots written by train_model.py
+├── templates/
+│   ├── index.html                # Dashboard
+│   ├── 404.html
+│   └── 500.html
+├── docs/
+│   ├── success_rule.md           # Definition of the success label
+│   └── league_criteria_sources.md
+└── notebooks/
+    └── liguefit_index_exploration.ipynb   # Exploration (not updated; needs: pip install jupyter)
+```
 
-### Sprint 4 🎨 - Advanced Analytics
-- [ ] Seasonal adaptation tracking
-- [ ] Team-specific factors
-- [ ] Injury risk correlation
-- [ ] Market value predictions
+## Limitations
 
-## 🤝 Contributing
+- Small training set so far, and the success label is a rule of thumb (see [`docs/success_rule.md`](docs/success_rule.md)).
+- Only the summer 2023 transfer window is used for now.
+- Injuries, tactical role and team quality are not modelled, so they are mixed into the label.
+- League characteristics are estimates.
+- The model predicts a binary label. The "adaptability score" is its probability output and is not calibrated.
+- Feature importance is global only.
+- The free API-Football plan limits how fast the dataset can grow.
+
+## Roadmap
+
+- [x] Feature pipeline on API-Football data
+- [x] Resumable, rate-limited data collection
+- [x] Flask dashboard and JSON API with input validation
+- [ ] Complete the summer 2023 collection and retrain
+- [ ] More transfer windows (summer 2022, then winter windows)
+- [ ] Documented, refined success label, reviewed before reading results
+- [ ] Calibrated probabilities and proper evaluation (repeated CV, more players)
+- [ ] Per-player explanations (for example SHAP values)
+- [ ] Automated tests for the feature pipeline and API
+- [ ] Real league characteristics from match data
+
+## Contributing
 
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit changes (`git commit -m 'Add amazing feature'`)
-4. Push to branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+3. Commit your changes
+4. Open a Pull Request
 
-## 🔧 Development Setup
+## License
 
-```bash
-# Development dependencies
-pip install -r requirements-dev.txt
+Not yet defined. The repository does not include a `LICENSE` file, so all rights are reserved by default until one is added.
 
-# Run tests
-pytest tests/
-
-# Code formatting
-black src/
-flake8 src/
-```
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🙏 Acknowledgments
-
-- Football data community for inspiration
-- scikit-learn and XGBoost teams for excellent ML libraries
-- Flask team for the lightweight web framework
-
-## 📞 Contact
+## Contact
 
 **Clement GHN** - [@clement-ghn](https://github.com/clement-ghn)
-
-Project Link: [https://github.com/clement-ghn/league-adaptability-index](https://github.com/clement-ghn/league-adaptability-index)
-
----
-
-*Made with ⚽ and 🤖 for football analytics enthusiasts*
